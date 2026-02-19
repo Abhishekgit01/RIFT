@@ -32,36 +32,22 @@ body {
   overflow-x: hidden;
 }
 
-/* Themed background: money muling network patterns */
-body::before {
-  content: '';
+/* ── Landing page background (coins image) ── */
+.landing-bg {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background:
-    /* Scattered dollar signs via SVG */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Ctext x='30' y='60' font-size='28' fill='rgba(26,92,58,0.06)' font-family='monospace' font-weight='700'%3E%24%3C/text%3E%3Ctext x='140' y='130' font-size='20' fill='rgba(26,92,58,0.04)' font-family='monospace' font-weight='700'%3E%24%3C/text%3E%3Ctext x='80' y='180' font-size='14' fill='rgba(26,92,58,0.05)' font-family='monospace' font-weight='700'%3E%24%3C/text%3E%3C/svg%3E"),
-    /* Network connection lines */
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Ccircle cx='50' cy='50' r='2' fill='rgba(74,143,191,0.08)'/%3E%3Ccircle cx='250' cy='100' r='1.5' fill='rgba(74,143,191,0.06)'/%3E%3Ccircle cx='150' cy='250' r='2' fill='rgba(74,143,191,0.07)'/%3E%3Ccircle cx='100' cy='150' r='1' fill='rgba(229,69,69,0.06)'/%3E%3Cline x1='50' y1='50' x2='250' y2='100' stroke='rgba(74,143,191,0.04)' stroke-width='0.5'/%3E%3Cline x1='250' y1='100' x2='150' y2='250' stroke='rgba(74,143,191,0.03)' stroke-width='0.5'/%3E%3Cline x1='50' y1='50' x2='100' y2='150' stroke='rgba(229,69,69,0.03)' stroke-width='0.5' stroke-dasharray='4,6'/%3E%3Cline x1='100' y1='150' x2='150' y2='250' stroke='rgba(74,143,191,0.03)' stroke-width='0.5'/%3E%3C/svg%3E"),
-    /* Atmospheric glows */
-    radial-gradient(ellipse 900px 600px at 15% 25%, rgba(26, 92, 58, 0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 700px 500px at 85% 75%, rgba(229, 69, 69, 0.03) 0%, transparent 70%),
-    radial-gradient(ellipse 500px 400px at 50% 50%, rgba(74, 143, 191, 0.04) 0%, transparent 60%);
-  pointer-events: none;
+  background: url('/bg-coins.jpg') center center / cover no-repeat;
 }
 
-body::after {
+.landing-bg::after {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: 0;
-  /* Chain-link / hex grid pattern */
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cpath d='M30 5 L55 17.5 L55 42.5 L30 55 L5 42.5 L5 17.5 Z' fill='none' stroke='rgba(74,143,191,0.03)' stroke-width='0.5'/%3E%3C/svg%3E"),
-    linear-gradient(rgba(140,200,255,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(140,200,255,0.015) 1px, transparent 1px);
-  background-size: 60px 60px, 80px 80px, 80px 80px;
-  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(4,6,8,0.75) 0%, rgba(4,6,8,0.55) 40%, rgba(4,6,8,0.85) 100%),
+    radial-gradient(ellipse 800px 500px at 30% 30%, rgba(26, 92, 58, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 400px at 70% 60%, rgba(229, 69, 69, 0.06) 0%, transparent 70%);
 }
 
 .app {
@@ -120,6 +106,72 @@ header p {
   margin-bottom: 12px;
 }
 
+/* ── Landing hero ── */
+.landing-hero {
+  text-align: center;
+  padding: 80px 20px 40px;
+}
+
+.landing-hero h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #e8e8e8 0%, #7ec8f0 40%, #e54545 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.landing-hero p {
+  color: rgba(255,255,255,0.55);
+  font-size: 1.1rem;
+  max-width: 500px;
+  margin: 0 auto 16px;
+  line-height: 1.6;
+}
+
+.landing-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(229, 69, 69, 0.12);
+  border: 1px solid rgba(229, 69, 69, 0.25);
+  color: #e87070;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+/* ── Feature cards row ── */
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 800px;
+  margin: 0 auto 48px;
+}
+
+.landing-feature-icon {
+  font-size: 1.6rem;
+  margin-bottom: 8px;
+}
+
+.landing-feature-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.landing-feature-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* Upload section */
 .upload-section {
   display: flex;
@@ -127,14 +179,17 @@ header p {
   align-items: center;
   gap: 16px;
   padding: 48px;
-  border: 1px dashed var(--border-light);
+  border: 1px dashed rgba(255,255,255,0.15);
   border-radius: 16px;
-  background: var(--surface);
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(12px);
   transition: border-color 0.2s;
+  max-width: 520px;
+  margin: 0 auto;
 }
 
 .upload-section:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .upload-section .file-info {
@@ -144,6 +199,14 @@ header p {
 
 .upload-section input[type="file"] {
   display: none;
+}
+
+/* ── Landing footer text ── */
+.landing-footer {
+  text-align: center;
+  padding: 48px 20px 32px;
+  color: rgba(255,255,255,0.25);
+  font-size: 0.78rem;
 }
 
 /* Loading */
@@ -1028,7 +1091,9 @@ table.ring-table td {
 /* Responsive */
 @media (max-width: 768px) {
   .app { padding: 12px; }
+  .landing-hero h1 { font-size: 2rem; }
   header h1 { font-size: 1.5rem; }
+  .landing-features { grid-template-columns: 1fr; max-width: 320px; }
   .upload-section { padding: 24px; }
   #cy { height: 350px; }
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
