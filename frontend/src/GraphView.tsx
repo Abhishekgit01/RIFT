@@ -11,7 +11,7 @@ interface Props {
 
 export default function GraphView({ data, selectedRingId }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const cyRef = useRef<cytoscape.Core | null>(null)
+  const cyRef = useRef<any>(null)
   const [tooltip, setTooltip] = useState<TooltipData | null>(null)
 
   // Timeline state
@@ -182,20 +182,20 @@ export default function GraphView({ data, selectedRingId }: Props) {
     cy.elements().addClass('dimmed').removeClass('highlighted')
 
     // Highlight ring members and their connecting edges
-    cy.nodes().forEach(node => {
-      if (memberSet.has(node.id())) {
-        node.removeClass('dimmed').addClass('highlighted')
-      }
-    })
+      cy.nodes().forEach((node: any) => {
+        if (memberSet.has(node.id())) {
+          node.removeClass('dimmed').addClass('highlighted')
+        }
+      })
 
-    cy.edges().forEach(edge => {
-      const src = edge.source().id()
-      const tgt = edge.target().id()
-      if (memberSet.has(src) && memberSet.has(tgt)) {
-        edge.removeClass('dimmed').addClass('highlighted')
-      }
-    })
-  }, [selectedRingId, data])
+      cy.edges().forEach((edge: any) => {
+        const src = edge.source().id()
+        const tgt = edge.target().id()
+        if (memberSet.has(src) && memberSet.has(tgt)) {
+          edge.removeClass('dimmed').addClass('highlighted')
+        }
+      })
+    }, [selectedRingId, data])
 
   // Timeline effect
   useEffect(() => {
@@ -212,24 +212,24 @@ export default function GraphView({ data, selectedRingId }: Props) {
     // Show/hide edges based on timestamp
     const visibleNodes = new Set<string>()
 
-    cy.edges().forEach(edge => {
-      const ts = edge.data('timestamp') as number
-      if (ts <= cutoff) {
-        edge.removeClass('timeline-hidden')
-        visibleNodes.add(edge.source().id())
-        visibleNodes.add(edge.target().id())
-      } else {
-        edge.addClass('timeline-hidden')
-      }
-    })
+      cy.edges().forEach((edge: any) => {
+        const ts = edge.data('timestamp') as number
+        if (ts <= cutoff) {
+          edge.removeClass('timeline-hidden')
+          visibleNodes.add(edge.source().id())
+          visibleNodes.add(edge.target().id())
+        } else {
+          edge.addClass('timeline-hidden')
+        }
+      })
 
-    cy.nodes().forEach(node => {
-      if (visibleNodes.has(node.id())) {
-        node.removeClass('timeline-hidden')
-      } else {
-        node.addClass('timeline-hidden')
-      }
-    })
+      cy.nodes().forEach((node: any) => {
+        if (visibleNodes.has(node.id())) {
+          node.removeClass('timeline-hidden')
+        } else {
+          node.addClass('timeline-hidden')
+        }
+      })
   }, [timelineEnabled, currentCutoff])
 
   // Play animation
