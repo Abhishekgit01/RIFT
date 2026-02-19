@@ -6,6 +6,7 @@ from .detection import detect_all
 from .scoring import compute_scores, _build_profiles
 from .output import build_output
 from .narrative import generate_all_narratives
+from .casefile import build_casefiles
 
 app = FastAPI(title="Financial Forensics Engine")
 
@@ -48,5 +49,9 @@ async def analyze(file: UploadFile = File(...)):
     # Generate AI risk narratives (reuse profiles)
     narratives = generate_all_narratives(result, profiles)
     output["narratives"] = narratives
+
+    # Generate ring casefiles (explainability scorecards)
+    casefiles = build_casefiles(df, result, profiles, centrality)
+    output["casefiles"] = casefiles
 
     return output

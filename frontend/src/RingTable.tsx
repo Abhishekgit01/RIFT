@@ -5,6 +5,7 @@ interface Props {
   rings: FraudRing[]
   selectedRingId: string | null
   onSelectRing: (ringId: string | null) => void
+  onOpenCasefile?: (ringId: string) => void
 }
 
 const PAGE_SIZE = 100
@@ -15,7 +16,7 @@ function riskClass(score: number): string {
   return 'low'
 }
 
-export default function RingTable({ rings, selectedRingId, onSelectRing }: Props) {
+export default function RingTable({ rings, selectedRingId, onSelectRing, onOpenCasefile }: Props) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
 
   if (rings.length === 0) {
@@ -58,6 +59,7 @@ export default function RingTable({ rings, selectedRingId, onSelectRing }: Props
             <th>Member Count</th>
             <th>Risk Score</th>
             <th>Member Account IDs</th>
+            <th style={{width: 110}}>Casefile</th>
           </tr>
         </thead>
         <tbody>
@@ -78,6 +80,14 @@ export default function RingTable({ rings, selectedRingId, onSelectRing }: Props
               </td>
               <td style={{ fontSize: '0.8rem', maxWidth: '300px', wordBreak: 'break-all' }}>
                 {ring.member_accounts.join(', ')}
+              </td>
+              <td>
+                <button
+                  className="cf-open-btn"
+                  onClick={e => { e.stopPropagation(); onOpenCasefile?.(ring.ring_id) }}
+                >
+                  View Casefile
+                </button>
               </td>
             </tr>
           ))}

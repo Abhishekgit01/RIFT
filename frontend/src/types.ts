@@ -47,6 +47,59 @@ export interface Narrative {
   score: number
 }
 
+// ── Casefile types ──
+export interface CasefileEvidence {
+  transaction_id: string
+  from: string
+  to: string
+  amount: number
+  timestamp: string
+}
+
+export interface CasefileTemporal {
+  first_activity: string
+  last_activity: string
+  span_hours: number
+  internal_transactions: number
+  internal_volume: number
+}
+
+export interface CasefileMemberProfile {
+  total_txns: number
+  velocity: number
+  avg_amount: number
+  counterparties: number
+  pagerank: number
+  betweenness: number
+}
+
+export interface CasefileMember {
+  account_id: string
+  suspicion_score: number
+  detected_patterns: string[]
+  role: string
+  risk_contribution: Record<string, number>
+  profile?: CasefileMemberProfile
+  fp_justification?: string[]
+  fp_status?: string
+}
+
+export interface CasefileRiskFactor {
+  factor: string
+  total_points: number
+}
+
+export interface Casefile {
+  ring_id: string
+  pattern_type: string
+  risk_score: number
+  member_count: number
+  temporal: CasefileTemporal
+  top_evidence: CasefileEvidence[]
+  risk_factors: CasefileRiskFactor[]
+  members: CasefileMember[]
+}
+
 export interface AnalysisResult {
   suspicious_accounts: SuspiciousAccount[]
   fraud_rings: FraudRing[]
@@ -56,6 +109,7 @@ export interface AnalysisResult {
     edges: GraphEdge[]
   }
   narratives?: Narrative[]
+  casefiles?: Casefile[]
 }
 
 export interface TooltipData {

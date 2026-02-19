@@ -2,10 +2,11 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import cytoscape from 'cytoscape'
 import type { AnalysisResult, TooltipData } from './types'
 
+// High-contrast neon palette — every colour is max-sat on a dark bg
 const RING_COLORS = [
-  '#ff4d6d', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5', '#f15bb5', '#00bbf9', '#ff9900',
-  '#e54545', '#d4943a', '#9b7bd4', '#d46a90', '#3da8a0', '#cc7733', '#3da8cc', '#7aaa3d',
-  '#ef476f', '#ffd60a', '#70e000', '#0077b6', '#c77dff', '#f77f00', '#4cc9f0', '#80b918'
+  '#ff2a6d', '#ffe14d', '#00f5a0', '#00d4ff', '#b84dff', '#ff5ed4', '#00e5ff', '#ff8800',
+  '#ff4444', '#ffaa22', '#c084fc', '#ff6b9d', '#20e3b2', '#ff9933', '#22d3ee', '#7dff3a',
+  '#ff006e', '#ffea00', '#39ff14', '#0096ff', '#d946ef', '#ff6d00', '#06b6d4', '#84cc16'
 ]
 // Scale caps with dataset size so small graphs stay snappy but large ones
 // still show the surrounding "blue ocean" of safe nodes.
@@ -131,13 +132,13 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       // All ring members get their ring's color; suspicious-only get red; clean nodes get steely blue
       const color = (ringId && ringColorMap[ringId])
         ? ringColorMap[ringId]
-        : (isSusp ? '#ff4d6d' : '#5aafdf')
+        : (isSusp ? '#ff1f5a' : '#4de1ff')
       const betweenness = node.betweenness || 0
       const centralitySize = 22 + (betweenness / maxBetweenness) * 38
       // All nodes are circles (ellipse) — size differentiates importance
       const size = isSusp
-        ? Math.max(36, centralitySize)
-        : (isRingMember ? Math.max(26, centralitySize * 0.85) : Math.max(18, centralitySize * 0.6))
+        ? Math.max(40, centralitySize * 1.1)
+        : (isRingMember ? Math.max(28, centralitySize * 0.9) : Math.max(22, centralitySize * 0.65))
 
       elements.push({
         data: {
@@ -152,8 +153,9 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           color,
           size: Math.round(size),
           // Bold visible border for ring & suspicious nodes
-          borderWidth: isSusp ? 3 : (isRingMember ? 2 : 1.2),
-          borderColor: isSusp ? '#ffffff' : (isRingMember ? '#ffffff' : 'rgba(140, 200, 255, 0.35)'),
+          borderWidth: isSusp ? 3.5 : (isRingMember ? 2.5 : 1.5),
+          borderColor: isSusp ? '#ffffff' : (isRingMember ? 'rgba(255,255,255,0.9)' : 'rgba(77, 225, 255, 0.45)'),
+          glowColor: color,
           // All shapes are ellipse (circle) — matches screenshot
           shape: 'ellipse',
         },
@@ -179,8 +181,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           suspicious: bothRing,
           eitherSusp,
           width: Math.round(width * 10) / 10,
-          color: bothRing ? 'rgba(229, 69, 69, 0.7)' : (eitherSusp ? 'rgba(212, 148, 58, 0.45)' : 'rgba(74, 143, 191, 0.25)'),
-          arrowColor: bothRing ? '#e54545' : (eitherSusp ? '#d4943a' : 'rgba(120, 170, 200, 0.5)'),
+          color: bothRing ? 'rgba(255, 31, 90, 0.75)' : (eitherSusp ? 'rgba(255, 170, 34, 0.55)' : 'rgba(77, 225, 255, 0.22)'),
+          arrowColor: bothRing ? '#ff1f5a' : (eitherSusp ? '#ffaa22' : 'rgba(77, 225, 255, 0.5)'),          
         },
       })
     })
@@ -247,9 +249,9 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         {
           selector: 'node[?suspicious]',
           style: {
-            'shadow-blur': 24,
+            'shadow-blur': 32,
             'shadow-color': 'data(color)',
-            'shadow-opacity': 0.6,
+            'shadow-opacity': 0.75,
             'shadow-offset-x': 0,
             'shadow-offset-y': 0,
             'label': 'data(label)',
@@ -259,9 +261,9 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         {
           selector: 'node[?isRingMember]',
           style: {
-            'shadow-blur': 16,
+            'shadow-blur': 22,
             'shadow-color': 'data(color)',
-            'shadow-opacity': 0.45,
+            'shadow-opacity': 0.55,
             'shadow-offset-x': 0,
             'shadow-offset-y': 0,
             'label': 'data(label)',
@@ -378,14 +380,19 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     updateMinimap(cy)
     cy.on('pan zoom', () => updateMinimap(cy))
 
-    // Animate suspicious edges
+    // Animate suspicious edges (marching ants) + pulsing ring glow
     let offset = 0
-    const animateEdges = () => {
-      offset = (offset + 0.4) % 12
+    let glowPhase = 0
+    const animLoop = () => {
+      offset = (offset + 0.6) % 12
+      glowPhase = (glowPhase + 0.03) % (Math.PI * 2)
+      const pulse = 0.55 + Math.sin(glowPhase) * 0.25 // 0.30 – 0.80
       cy.edges('[?suspicious]').style('line-dash-offset', -offset)
-      animFrameRef.current = requestAnimationFrame(animateEdges)
+      // Pulse suspicious node glows — lightweight: changes a single style prop
+      cy.nodes('[?suspicious]').style('shadow-opacity', pulse)
+      animFrameRef.current = requestAnimationFrame(animLoop)
     }
-    animFrameRef.current = requestAnimationFrame(animateEdges)
+    animFrameRef.current = requestAnimationFrame(animLoop)
   }, [data, showLabels])
 
   useEffect(() => {
@@ -510,10 +517,10 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       <div className="graph-toolbar">
         <div className="gt-left">
           <div className="gt-stats">
-            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#4a8fbf' }} />{graphStats.nodes} nodes</span>
+            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#4de1ff' }} />{graphStats.nodes} nodes</span>
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#4a6a7f' }} />{graphStats.edges} edges</span>
-            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#e54545' }} />{graphStats.clusters} rings</span>
-            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#d4943a' }} />{graphStats.suspicious} flagged</span>
+            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#ff1f5a' }} />{graphStats.clusters} rings</span>
+            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#ffaa22' }} />{graphStats.suspicious} flagged</span>
           </div>
         </div>
         <div className="gt-right">
@@ -552,7 +559,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         <div className="gt-search-results">
           {searchResults.slice(0, 8).map(id => (
             <button key={id} className="gt-search-result" onClick={() => focusNode(id)}>
-              <span className="gt-sr-dot" style={{ background: data.graph.nodes.find(n => n.id === id)?.suspicious ? '#e54545' : '#4a8fbf' }} />
+              <span className="gt-sr-dot" style={{ background: data.graph.nodes.find(n => n.id === id)?.suspicious ? '#ff1f5a' : '#4de1ff' }} />
               {id}
               {data.graph.nodes.find(n => n.id === id)?.suspicious && <span className="gt-sr-badge">FLAGGED</span>}
             </button>
@@ -568,7 +575,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       <div className="graph-legend">
         <div className="gl-title">LEGEND</div>
         <div className="gl-items">
-          <div className="gl-item"><div className="gl-dot" style={{ background: '#4a8fbf' }} /><span>Normal</span></div>
+          <div className="gl-item"><div className="gl-dot" style={{ background: '#4de1ff' }} /><span>Normal</span></div>
           <div className="gl-item"><div className="gl-dot gl-triangle" /><span>Suspicious</span></div>
           <div className="gl-item"><div className="gl-dot gl-diamond" style={{ background: '#d4943a' }} /><span>Ring Member</span></div>
           <div className="gl-item"><div className="gl-line gl-dash" /><span>Suspicious Flow</span></div>

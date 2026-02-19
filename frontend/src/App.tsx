@@ -7,6 +7,7 @@ import Dashboard from './Dashboard'
 
 import SankeyDiagram from './SankeyDiagram'
 import ScanLoader from './ScanLoader'
+import CasefilePanel from './CasefilePanel'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
@@ -74,6 +75,7 @@ function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [selectedRingId, setSelectedRingId] = useState<string | null>(null)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+  const [casefileRingId, setCasefileRingId] = useState<string | null>(null)
   const [expandedProtocol, setExpandedProtocol] = useState<string | null>(null)
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -330,7 +332,7 @@ function App() {
         <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
       </div>
 
-      <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
+      <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} onOpenCasefile={setCasefileRingId} />
 
       <div className="actions">
         <button className="btn" onClick={handleDownload}>Download JSON Report</button>
@@ -344,6 +346,11 @@ function App() {
           onClose={() => setSelectedAccountId(null)}
         />
       )}
+
+      {casefileRingId && result.casefiles && (() => {
+        const cf = result.casefiles.find(c => c.ring_id === casefileRingId)
+        return cf ? <CasefilePanel casefile={cf} onClose={() => setCasefileRingId(null)} /> : null
+      })()}
     </div>
   )
 }
