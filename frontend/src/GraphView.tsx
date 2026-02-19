@@ -7,9 +7,10 @@ const RING_COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f9
 interface Props {
   data: AnalysisResult
   selectedRingId: string | null
+  onSelectAccount?: (accountId: string) => void
 }
 
-export default function GraphView({ data, selectedRingId }: Props) {
+export default function GraphView({ data, selectedRingId, onSelectAccount }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<any>(null)
   const [tooltip, setTooltip] = useState<TooltipData | null>(null)
@@ -154,6 +155,11 @@ export default function GraphView({ data, selectedRingId }: Props) {
 
     cy.on('mouseout', 'node', () => {
       setTooltip(null)
+    })
+
+    cy.on('tap', 'node', (e) => {
+      const nodeId = e.target.id()
+      if (onSelectAccount) onSelectAccount(nodeId)
     })
 
     cyRef.current = cy

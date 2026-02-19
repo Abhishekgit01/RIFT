@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import type { AnalysisResult, TooltipData } from './types'
 import GraphView from './GraphView'
 import RingTable from './RingTable'
+import AccountDetailPanel from './AccountDetailPanel'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
@@ -11,6 +12,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [selectedRingId, setSelectedRingId] = useState<string | null>(null)
+  const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null
@@ -63,6 +65,7 @@ function App() {
     setResult(null)
     setError(null)
     setSelectedRingId(null)
+    setSelectedAccountId(null)
   }
 
   return (
@@ -122,16 +125,24 @@ function App() {
 
           <div className="graph-container">
             <h2>Transaction Network Graph</h2>
-              <GraphView data={result} selectedRingId={selectedRingId} />
+              <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
             </div>
 
             <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
 
           <div className="actions">
-            <button className="download-btn" onClick={handleDownload}>Download JSON Report</button>
-            <button className="reset-btn" onClick={handleReset}>New Analysis</button>
-          </div>
-        </>
+              <button className="download-btn" onClick={handleDownload}>Download JSON Report</button>
+              <button className="reset-btn" onClick={handleReset}>New Analysis</button>
+            </div>
+
+            {selectedAccountId && (
+              <AccountDetailPanel
+                accountId={selectedAccountId}
+                data={result}
+                onClose={() => setSelectedAccountId(null)}
+              />
+            )}
+          </>
       )}
     </div>
   )

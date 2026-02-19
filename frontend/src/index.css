@@ -438,3 +438,322 @@ button.reset-btn:hover {
   background: var(--accent);
   color: white;
 }
+
+/* Account Detail Panel */
+.adp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 2000;
+  display: flex;
+  justify-content: flex-end;
+  backdrop-filter: blur(2px);
+}
+
+.adp-panel {
+  width: 420px;
+  max-width: 90vw;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 24px;
+  position: relative;
+  animation: adp-slide-in 0.2s ease-out;
+}
+
+@keyframes adp-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.adp-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.adp-close:hover {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.adp-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.adp-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.adp-avatar[data-suspicious="true"] {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.adp-title {
+  font-size: 1.2rem;
+  margin-bottom: 4px;
+}
+
+.adp-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.adp-stat {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+
+.adp-stat-value {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.adp-stat-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.adp-section {
+  margin-bottom: 18px;
+}
+
+.adp-section h3 {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Centrality bars */
+.adp-centrality {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adp-centrality-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adp-centrality-label {
+  width: 90px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.adp-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.adp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.adp-centrality-val {
+  font-size: 0.75rem;
+  color: var(--text);
+  min-width: 50px;
+  text-align: right;
+  font-family: monospace;
+}
+
+/* Patterns */
+.adp-patterns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.adp-pattern-tag {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Ring info */
+.adp-ring-info {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.adp-ring-label {
+  background: rgba(139, 92, 246, 0.15);
+  color: #8b5cf6;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.adp-ring-type {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: capitalize;
+}
+
+.adp-ring-members {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* Transaction list */
+.adp-txn-list {
+  max-height: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adp-txn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--surface2);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.adp-txn:hover {
+  border-color: var(--border);
+}
+
+.adp-txn-dir {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.adp-txn-dir.out {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--danger);
+}
+
+.adp-txn-dir.in {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--success);
+}
+
+.adp-txn-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.adp-txn-peer {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.adp-txn-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adp-txn-amount {
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.adp-txn-amount.out { color: var(--danger); }
+.adp-txn-amount.in { color: var(--success); }
+
+/* Connected accounts */
+.adp-connections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.adp-conn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+}
+
+.adp-conn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.adp-conn-dot.suspicious {
+  background: var(--danger);
+}
+
+.adp-conn-id {
+  font-weight: 600;
+}
+
+.adp-conn-score {
+  font-size: 0.72rem;
+  color: var(--danger);
+  font-weight: 700;
+}
