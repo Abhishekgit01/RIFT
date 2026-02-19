@@ -4,9 +4,9 @@ import type { AnalysisResult, TooltipData } from './types'
 
 // High-contrast neon palette — every colour is max-sat on a dark bg
 const RING_COLORS = [
-  '#ff2a6d', '#ffe14d', '#00f5a0', '#00d4ff', '#b84dff', '#ff5ed4', '#00e5ff', '#ff8800',
-  '#ff4444', '#ffaa22', '#c084fc', '#ff6b9d', '#20e3b2', '#ff9933', '#22d3ee', '#7dff3a',
-  '#ff006e', '#ffea00', '#39ff14', '#0096ff', '#d946ef', '#ff6d00', '#06b6d4', '#84cc16'
+  '#ff2a6d', '#ffe14d', '#00f5a0', '#00d4ff', '#b84dff', '#ff5ed4', '#c8dadc', '#ff8800',
+  '#ff4444', '#ffaa22', '#c084fc', '#ff6b9d', '#20e3b2', '#ff9933', '#bacdd0', '#7dff3a',
+  '#ff006e', '#ffea00', '#39ff14', '#0096ff', '#d946ef', '#ff6d00', '#abbec2', '#84cc16'
 ]
 // Scale caps with dataset size so small graphs stay snappy but large ones
 // still show the surrounding "blue ocean" of safe nodes.
