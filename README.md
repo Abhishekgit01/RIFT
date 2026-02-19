@@ -159,6 +159,4 @@ TXN_001,ACC_001,ACC_002,500.00,2024-01-15 10:00:00
 4. **No ML component**: Detection relies entirely on heuristic graph patterns. A production system would benefit from supervised learning on labeled data.
 5. **Currency agnostic**: No currency conversion or amount normalization across different currencies.
 6. **No persistence**: Results are not stored between sessions.
-|------|------|
-| Team Member 1 | Developer |
-| Team Member 2 | 
+
