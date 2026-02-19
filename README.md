@@ -159,36 +159,6 @@ TXN_001,ACC_001,ACC_002,500.00,2024-01-15 10:00:00
 4. **No ML component**: Detection relies entirely on heuristic graph patterns. A production system would benefit from supervised learning on labeled data.
 5. **Currency agnostic**: No currency conversion or amount normalization across different currencies.
 6. **No persistence**: Results are not stored between sessions.
-
-## Team Members
-
-| Name | Role |
 |------|------|
 | Team Member 1 | Developer |
-| Team Member 2 | Developer |
-
----
-
-### Demo Script (2-3 minutes for LinkedIn)
-
-**[0:00-0:20] Introduction**
-"Hi! I'm presenting the Financial Forensics Engine, built for the RIFT Hackathon. This tool detects money muling networks -- criminal schemes where funds are laundered through chains of accounts."
-
-**[0:20-0:50] Architecture Overview**
-"The backend uses Python with FastAPI and NetworkX for graph analysis. The frontend is React with Cytoscape.js for interactive network visualization. We detect three key patterns: circular fund routing, smurfing, and layered shell networks."
-
-**[0:50-1:30] Live Demo**
-"Let me upload a sample dataset. [Upload CSV] The engine processes the transactions and builds a directed graph. Here you can see the network -- suspicious nodes are highlighted in color, grouped by fraud ring. Hovering shows the suspicion score and detected patterns."
-
-**[1:30-2:00] Results Walkthrough**
-"The summary shows X accounts analyzed, Y flagged as suspicious across Z fraud rings. The ring table breaks down each ring by type and risk score. You can download the complete JSON report with deterministic ring IDs and sorted results."
-
-**[2:00-2:20] Technical Depth**
-"We use Johnson's algorithm for cycle detection, 72-hour rolling windows for smurfing, and DFS through shell accounts for layering. False positive controls exclude merchant-like and payroll-like accounts."
-
-**[2:20-2:40] Closing**
-"The full source code is on GitHub. Thanks for watching!"
-
-**Hashtags**: #RIFTHackathon #MoneyMulingDetection #FinancialCrime
-
-**Remember**: Tag the official RIFT LinkedIn page in your post.
+| Team Member 2 | 
