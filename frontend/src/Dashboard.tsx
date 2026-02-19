@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import type { AnalysisResult } from './types'
-import GlassSurface from './GlassSurface'
 
 interface Props {
   data: AnalysisResult
@@ -109,16 +108,7 @@ export default function Dashboard({ data }: Props) {
   const patternMax = stats.patternEntries.length > 0 ? stats.patternEntries[0][1] : 1
 
     return (
-      <GlassSurface
-        width="100%"
-        height="auto"
-        borderRadius={14}
-        brightness={18}
-        opacity={0.8}
-        blur={8}
-        style={{ marginBottom: 24, marginTop: 24 }}
-      >
-      <div className="dashboard" style={{ width: '100%', border: 'none', background: 'transparent', margin: 0 }}>
+      <div className="dashboard">
         <h2>Analytics Dashboard</h2>
 
       {/* Extended stats row */}
@@ -280,6 +270,5 @@ export default function Dashboard({ data }: Props) {
         </div>
         </div>
       </div>
-      </GlassSurface>
     )
   }

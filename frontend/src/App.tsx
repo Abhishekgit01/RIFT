@@ -137,16 +137,7 @@ function App() {
 
         {result && (
           <>
-            <GlassSurface
-              width="100%"
-              height="auto"
-              borderRadius={16}
-              brightness={20}
-              opacity={0.85}
-              blur={10}
-              style={{ marginBottom: 24 }}
-            >
-              <div className="summary-grid" style={{ width: '100%', margin: 0 }}>
+              <div className="summary-grid">
                 <div className="summary-card">
                   <div className="value">{result.summary.total_accounts_analyzed}</div>
                   <div className="label">Accounts Analyzed</div>
@@ -164,57 +155,19 @@ function App() {
                   <div className="label">Processing Time</div>
                 </div>
               </div>
-            </GlassSurface>
 
           <Dashboard data={result} />
 
-          <GlassSurface
-            width="100%"
-            height="auto"
-            borderRadius={14}
-            brightness={18}
-            opacity={0.8}
-            blur={8}
-            style={{ marginBottom: 24 }}
-          >
-            <div className="graph-container" style={{ width: '100%', margin: 0, border: 'none', background: 'transparent' }}>
+            <div className="graph-container">
               <h2>Transaction Network Graph</h2>
               <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
             </div>
-          </GlassSurface>
 
           <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
 
           <div className="actions">
-            <GlassSurface
-              width="auto"
-              height="auto"
-              borderRadius={10}
-              brightness={30}
-              opacity={0.9}
-              blur={8}
-              onClick={handleDownload}
-              style={{ cursor: 'pointer' }}
-            >
-              <span style={{ padding: '10px 28px', fontWeight: 600, color: '#e8e8e8' }}>
-                Download JSON Report
-              </span>
-            </GlassSurface>
-
-            <GlassSurface
-              width="auto"
-              height="auto"
-              borderRadius={10}
-              brightness={25}
-              opacity={0.9}
-              blur={8}
-              onClick={handleReset}
-              style={{ cursor: 'pointer' }}
-            >
-              <span style={{ padding: '10px 28px', fontWeight: 600, color: '#999' }}>
-                New Analysis
-              </span>
-            </GlassSurface>
+              <button className="btn" onClick={handleDownload}>Download JSON Report</button>
+              <button className="btn btn-secondary" onClick={handleReset}>New Analysis</button>
           </div>
 
           {selectedAccountId && (

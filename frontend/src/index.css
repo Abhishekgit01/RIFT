@@ -334,6 +334,32 @@ table.ring-table td {
   flex-wrap: wrap;
 }
 
+.btn {
+  padding: 10px 28px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.2);
+}
+
+.btn-secondary {
+  color: var(--text-muted);
+  background: var(--surface);
+}
+
+.btn-secondary:hover {
+  color: var(--text);
+}
+
 /* Timeline controls */
 .timeline-controls {
   background: var(--surface2);
