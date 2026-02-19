@@ -2,11 +2,14 @@
 """
 RIFT 2026 – Fraud-ring deduplication post-processor.
 
-Reads a JSON file produced by the Financial Forensics Engine,
-removes duplicate fraud_rings (same set of member_accounts regardless
-of ordering or ring_id), remaps ring_id references in suspicious_accounts,
-re-sequences ring IDs, updates the summary counter, and writes the
-cleaned JSON in spec-compliant format.
+Handles three categories of redundant rings:
+  1. Exact duplicates  – identical member_accounts (order-insensitive).
+  2. Subset rings      – one ring's members ⊂ another's.
+  3. Overlapping rings – two rings share ≥1 member account.
+
+For every group of overlapping/duplicate rings, the **largest** ring
+(most members) is kept.  On a tie, the ring with the highest risk_score
+wins.  All others are absorbed and their ring_ids remapped to the survivor.
 
 Usage:
     python dedup_rings.py <input.json> [output.json]
@@ -16,7 +19,7 @@ If output path is omitted the cleaned JSON is written to stdout.
 import json
 import sys
 from collections import OrderedDict
-from typing import Any
+from typing import Any, List
 
 
 # ── helpers ──────────────────────────────────────────────────────────
@@ -37,59 +40,156 @@ def _deep_format_floats(obj: Any) -> Any:
     return obj
 
 
-def _canonical_key(members: list) -> tuple:
-    """Order-independent canonical key for a set of member accounts."""
-    return tuple(sorted(members))
+# ── overlap-aware deduplication via Union-Find ───────────────────────
+
+class _UnionFind:
+    """Weighted quick-union with path compression."""
+
+    def __init__(self, n: int):
+        self.parent = list(range(n))
+        self.rank = [0] * n
+
+    def find(self, x: int) -> int:
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]
+            x = self.parent[x]
+        return x
+
+    def union(self, a: int, b: int) -> None:
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return
+        if self.rank[ra] < self.rank[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        if self.rank[ra] == self.rank[rb]:
+            self.rank[ra] += 1
+
+
+def _merge_overlapping_rings(rings: List[dict]) -> List[dict]:
+    """Merge all rings whose member_accounts overlap.
+
+    Returns one representative ring per connected component.  The
+    representative is the ring with the most members (tie-break:
+    highest risk_score).  Its member_accounts is the *union* of all
+    members across the component so no account is lost.  Pattern types
+    are merged with '+' if they differ.
+    """
+    n = len(rings)
+    if n == 0:
+        return []
+
+    sets = [frozenset(r["member_accounts"]) for r in rings]
+
+    # Build an inverted index: account → list of ring indices
+    acct_to_rings: dict[str, list[int]] = {}
+    for i, s in enumerate(sets):
+        for acct in s:
+            acct_to_rings.setdefault(acct, []).append(i)
+
+    # Union rings that share at least one account
+    uf = _UnionFind(n)
+    for indices in acct_to_rings.values():
+        for j in range(1, len(indices)):
+            uf.union(indices[0], indices[j])
+
+    # Group rings by their component root
+    components: dict[int, list[int]] = {}
+    for i in range(n):
+        root = uf.find(i)
+        components.setdefault(root, []).append(i)
+
+    # Pick representative per component
+    survivors: list[dict] = []
+    for member_indices in components.values():
+        # Sort: largest member set first, then highest risk_score
+        member_indices.sort(
+            key=lambda i: (len(sets[i]), rings[i].get("risk_score", 0)),
+            reverse=True,
+        )
+        rep_idx = member_indices[0]
+        rep = rings[rep_idx]
+
+        # Merge all members from the component into the union set
+        merged_members: set[str] = set()
+        merged_patterns: list[str] = []
+        for i in member_indices:
+            merged_members |= sets[i]
+            pt = rings[i].get("pattern_type", "")
+            if pt and pt not in merged_patterns:
+                merged_patterns.append(pt)
+
+        survivors.append({
+            "member_accounts": sorted(merged_members),
+            "pattern_type":    "+".join(merged_patterns) if len(merged_patterns) > 1 else merged_patterns[0] if merged_patterns else rep.get("pattern_type", "unknown"),
+            "risk_score":      rep.get("risk_score", 0),
+            # Carry all original ring_ids so we can build the remap table
+            "_original_ids":   [rings[i]["ring_id"] for i in member_indices],
+        })
+
+    return survivors
 
 
 # ── main logic ───────────────────────────────────────────────────────
 
-def dedup_fraud_rings(data: dict) -> dict:
-    """Return a new dict with duplicate fraud rings removed and all
-    cross-references updated."""
+def dedup_fraud_rings(data: dict) -> tuple:
+    """Return (cleaned_data, stats_dict) with duplicate / overlapping
+    fraud rings merged and all cross-references updated."""
 
     original_rings = data["fraud_rings"]
     original_count = len(original_rings)
 
-    # 1. Deduplicate rings – keep the first occurrence per unique member set
-    seen: dict[tuple, int] = {}          # canonical_key → index in unique list
-    unique_rings: list[dict] = []
-    old_to_new_id: dict[str, str] = {}   # old ring_id → surviving ring_id
+    # Phase 1 – merge overlapping / subset / exact-duplicate rings
+    merged = _merge_overlapping_rings(original_rings)
 
-    for ring in original_rings:
-        key = _canonical_key(ring["member_accounts"])
-        if key not in seen:
-            new_idx = len(unique_rings)
-            new_id = f"RING_{new_idx + 1:03d}"
-            seen[key] = new_idx
-            # Build a fresh ring dict with correct field order
-            unique_rings.append(OrderedDict([
-                ("ring_id",          new_id),
-                ("member_accounts",  sorted(ring["member_accounts"])),
-                ("pattern_type",     ring["pattern_type"]),
-                ("risk_score",       _fmt_float(ring["risk_score"])),
-            ]))
-            old_to_new_id[ring["ring_id"]] = new_id
-        else:
-            # Duplicate – map its old ring_id to the surviving one
-            surviving_idx = seen[key]
-            old_to_new_id[ring["ring_id"]] = unique_rings[surviving_idx]["ring_id"]
+    # Phase 2 – assign new sequential RING_IDs and build remap table
+    old_to_new_id: dict[str, str] = {}
+    unique_rings: list[OrderedDict] = []
+
+    for idx, ring in enumerate(merged):
+        new_id = f"RING_{idx + 1:03d}"
+        unique_rings.append(OrderedDict([
+            ("ring_id",         new_id),
+            ("member_accounts", ring["member_accounts"]),
+            ("pattern_type",    ring["pattern_type"]),
+            ("risk_score",      _fmt_float(ring["risk_score"])),
+        ]))
+        for old_id in ring["_original_ids"]:
+            old_to_new_id[old_id] = new_id
+
+    # Build a quick account → new_ring_id lookup for remapping
+    acct_to_ring: dict[str, str] = {}
+    for ring in unique_rings:
+        for m in ring["member_accounts"]:
+            acct_to_ring[m] = ring["ring_id"]
 
     duplicates_removed = original_count - len(unique_rings)
 
-    # 2. Rebuild suspicious_accounts with remapped ring_ids
-    spec_suspicious = []
+    # Phase 3 – rebuild suspicious_accounts with correct ring_ids
+    ring_ids_remapped = 0
+    spec_suspicious: list[OrderedDict] = []
     for acct in data["suspicious_accounts"]:
         old_rid = acct.get("ring_id", "NONE")
-        new_rid = old_to_new_id.get(old_rid, old_rid)
+        acc_id = acct["account_id"]
+
+        # Primary: use account membership to find the surviving ring
+        if acc_id in acct_to_ring:
+            new_rid = acct_to_ring[acc_id]
+        else:
+            # Fallback: remap via the old ring_id table
+            new_rid = old_to_new_id.get(old_rid, old_rid)
+
+        if new_rid != old_rid:
+            ring_ids_remapped += 1
+
         spec_suspicious.append(OrderedDict([
-            ("account_id",        acct["account_id"]),
+            ("account_id",        acc_id),
             ("suspicion_score",   _fmt_float(acct["suspicion_score"])),
             ("detected_patterns", list(acct["detected_patterns"])),
             ("ring_id",           new_rid),
         ]))
 
-    # 3. Update summary
+    # Phase 4 – update summary
     old_summary = data["summary"]
     spec_summary = OrderedDict([
         ("total_accounts_analyzed",    int(old_summary["total_accounts_analyzed"])),
@@ -98,7 +198,7 @@ def dedup_fraud_rings(data: dict) -> dict:
         ("processing_time_seconds",    _fmt_float(old_summary["processing_time_seconds"])),
     ])
 
-    # 4. Assemble output with required key order
+    # Phase 5 – assemble output with required key order
     output = OrderedDict([
         ("suspicious_accounts", spec_suspicious),
         ("fraud_rings",         unique_rings),
@@ -110,7 +210,14 @@ def dedup_fraud_rings(data: dict) -> dict:
         if k not in output:
             output[k] = v
 
-    return output, duplicates_removed
+    stats = {
+        "duplicates_removed": duplicates_removed,
+        "final_unique_rings": len(unique_rings),
+        "total_suspicious":   len(spec_suspicious),
+        "ring_ids_remapped":  ring_ids_remapped,
+    }
+
+    return output, stats
 
 
 def _json_dumps(obj: Any, **kwargs) -> str:
@@ -138,7 +245,7 @@ def main():
     with open(input_path, "r", encoding="utf-8") as f:
         data = json.load(f, object_pairs_hook=OrderedDict)
 
-    cleaned, duplicates_removed = dedup_fraud_rings(data)
+    cleaned, stats = dedup_fraud_rings(data)
 
     # Pretty-print with 1-d.p. floats
     json_str = _json_dumps(cleaned, indent=2)
@@ -152,15 +259,14 @@ def main():
         dest = "stdout"
 
     # Print summary to stderr so it doesn't pollute the JSON on stdout
-    total_suspicious = len(cleaned["suspicious_accounts"])
-    final_rings = len(cleaned["fraud_rings"])
     summary_lines = [
         "",
         "═══ Deduplication Summary ═══",
-        f"  Duplicate rings removed : {duplicates_removed}",
-        f"  Unique fraud rings      : {final_rings}",
-        f"  Suspicious accounts     : {total_suspicious}",
-        f"  Output                  : {dest}",
+        f"  Duplicate/overlapping rings removed : {stats['duplicates_removed']}",
+        f"  Final unique fraud rings            : {stats['final_unique_rings']}",
+        f"  Total suspicious accounts           : {stats['total_suspicious']}",
+        f"  Ring IDs remapped                   : {stats['ring_ids_remapped']}",
+        f"  Output                              : {dest}",
         "═════════════════════════════",
     ]
     print("\n".join(summary_lines), file=sys.stderr)

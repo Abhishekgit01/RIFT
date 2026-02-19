@@ -53,25 +53,92 @@ def detect_all(df: pd.DataFrame) -> Tuple[List[dict], Dict[str, List[str]], Dict
             if "layered_shell" not in account_patterns[acc]:
                 account_patterns[acc].append("layered_shell")
 
-    # Deduplicate rings — same set of member accounts = same ring,
-    # regardless of pattern_type or member ordering.
-    seen: dict[frozenset, int] = {}
-    unique_rings: list[dict] = []
-    for r in rings:
-        key = frozenset(r["members"])
-        if key not in seen:
-            seen[key] = len(unique_rings)
-            unique_rings.append(r)
-        else:
-            # Merge pattern_type info into the surviving ring if different
-            existing = unique_rings[seen[key]]
-            if r["pattern_type"] != existing["pattern_type"]:
-                existing["pattern_type"] = f"{existing['pattern_type']}+{r['pattern_type']}"
+    # Deduplicate & merge overlapping rings — rings that share any
+    # member account are merged into a single connected component.
+    unique_rings = _merge_overlapping_rings(rings)
 
     # 4. Graph centrality
     centrality = _compute_centrality(G)
 
     return unique_rings, dict(account_patterns), centrality
+
+
+class _UnionFind:
+    """Weighted quick-union with path compression."""
+
+    def __init__(self, n: int):
+        self.parent = list(range(n))
+        self.rank = [0] * n
+
+    def find(self, x: int) -> int:
+        while self.parent[x] != x:
+            self.parent[x] = self.parent[self.parent[x]]
+            x = self.parent[x]
+        return x
+
+    def union(self, a: int, b: int) -> None:
+        ra, rb = self.find(a), self.find(b)
+        if ra == rb:
+            return
+        if self.rank[ra] < self.rank[rb]:
+            ra, rb = rb, ra
+        self.parent[rb] = ra
+        if self.rank[ra] == self.rank[rb]:
+            self.rank[ra] += 1
+
+
+def _merge_overlapping_rings(rings: List[dict]) -> List[dict]:
+    """Merge rings that share any member account.
+
+    Uses Union-Find to group overlapping rings into connected components.
+    For each component the representative is the ring with the most members
+    (tie-break: alphabetically-first pattern_type).  The merged ring's
+    ``members`` list is the union of all members across the component.
+    Pattern types are joined with ``+`` when they differ.
+    """
+    n = len(rings)
+    if n == 0:
+        return []
+
+    sets = [frozenset(r["members"]) for r in rings]
+
+    # Inverted index: account → ring indices
+    acct_to_idx: Dict[str, List[int]] = defaultdict(list)
+    for i, s in enumerate(sets):
+        for acct in s:
+            acct_to_idx[acct].append(i)
+
+    # Union rings sharing at least one account
+    uf = _UnionFind(n)
+    for indices in acct_to_idx.values():
+        for j in range(1, len(indices)):
+            uf.union(indices[0], indices[j])
+
+    # Group by component root
+    components: Dict[int, List[int]] = defaultdict(list)
+    for i in range(n):
+        components[uf.find(i)].append(i)
+
+    # Build one merged ring per component
+    merged: List[dict] = []
+    for member_indices in components.values():
+        # Sort: largest member set first
+        member_indices.sort(key=lambda i: len(sets[i]), reverse=True)
+
+        all_members: Set[str] = set()
+        patterns: List[str] = []
+        for i in member_indices:
+            all_members |= sets[i]
+            pt = rings[i]["pattern_type"]
+            if pt not in patterns:
+                patterns.append(pt)
+
+        merged.append({
+            "members": sorted(all_members),
+            "pattern_type": "+".join(patterns) if len(patterns) > 1 else patterns[0],
+        })
+
+    return merged
 
 
 def _detect_cycles(G: nx.DiGraph, max_cycles: int = 500) -> List[Set[str]]:
