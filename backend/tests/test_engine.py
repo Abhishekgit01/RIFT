@@ -144,7 +144,7 @@ def test_scoring_output_format():
     with open(FIXTURE_PATH) as f:
         df = parse_csv(f.read())
     rings, patterns, centrality = detect_all(df)
-    result = compute_scores(df, rings, patterns)
+    result = compute_scores(df, rings, patterns, centrality)
     assert "suspicious_accounts" in result
     assert "fraud_rings" in result
     for acc in result["suspicious_accounts"]:
@@ -159,7 +159,7 @@ def test_scoring_sorted():
     with open(FIXTURE_PATH) as f:
         df = parse_csv(f.read())
     rings, patterns, centrality = detect_all(df)
-    result = compute_scores(df, rings, patterns)
+    result = compute_scores(df, rings, patterns, centrality)
     scores = [a["suspicion_score"] for a in result["suspicious_accounts"]]
     assert scores == sorted(scores, reverse=True)
 
@@ -169,10 +169,10 @@ def test_scoring_sorted():
 def test_json_schema():
     with open(FIXTURE_PATH) as f:
         df = parse_csv(f.read())
-    rings, patterns = detect_all(df)
-    result = compute_scores(df, rings, patterns)
+    rings, patterns, centrality = detect_all(df)
+    result = compute_scores(df, rings, patterns, centrality)
     from app.output import build_output
-    output = build_output(df, result, 1.0)
+    output = build_output(df, result, 1.0, centrality)
 
     # Validate top-level keys
     assert "suspicious_accounts" in output

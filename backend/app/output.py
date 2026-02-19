@@ -40,6 +40,9 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
             node["suspicion_score"] = info["suspicion_score"]
             node["detected_patterns"] = info["detected_patterns"]
             node["ring_id"] = info["ring_id"]
+        elif acc in ring_member_map:
+            # Non-suspicious ring members still need ring_id for graph coloring
+            node["ring_id"] = ring_member_map[acc]
         # Add centrality metrics
         cent = centrality.get(acc, {})
         node["pagerank"] = cent.get("pagerank", 0)
@@ -53,7 +56,7 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
             "target": row["receiver_id"],
             "amount": float(row["amount"]),
             "transaction_id": row["transaction_id"],
-            "timestamp": str(row["timestamp"]),
+            "timestamp": row["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
         })
 
     # Build spec-compliant suspicious_accounts — exact field order, exact float format
@@ -71,7 +74,7 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
     for r in result["fraud_rings"]:
         spec_fraud_rings.append({
             "ring_id": r["ring_id"],
-            "member_accounts": list(r["member_accounts"]),
+            "member_accounts": sorted(r["member_accounts"]),
             "pattern_type": r["pattern_type"],
             "risk_score": _fmt_float(r["risk_score"]),
         })

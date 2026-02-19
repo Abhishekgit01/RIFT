@@ -160,3 +160,9 @@ TXN_001,ACC_001,ACC_002,500.00,2024-01-15 10:00:00
 5. **Currency agnostic**: No currency conversion or amount normalization across different currencies.
 6. **No persistence**: Results are not stored between sessions.
 
+## Team Members
+
+| Name | Role |
+|------|------|
+| Abhishek | Full-Stack Developer & Algorithm Design |
+

@@ -128,28 +128,37 @@ function App() {
 
   const handleDownload = () => {
     if (!result) return
+    // Format float to exactly 1 decimal place (spec requirement)
+    const f1 = (v: number) => Math.round(v * 10) / 10
     // Rebuild JSON with exact hackathon spec: key order, field order, only required fields
     const specOutput = {
-      suspicious_accounts: result.suspicious_accounts.map(a => ({
-        account_id: a.account_id,
-        suspicion_score: a.suspicion_score,
-        detected_patterns: a.detected_patterns,
-        ring_id: a.ring_id,
-      })),
+      suspicious_accounts: [...result.suspicious_accounts]
+        .sort((a, b) => b.suspicion_score - a.suspicion_score || a.account_id.localeCompare(b.account_id))
+        .map(a => ({
+          account_id: a.account_id,
+          suspicion_score: f1(a.suspicion_score),
+          detected_patterns: a.detected_patterns,
+          ring_id: a.ring_id,
+        })),
       fraud_rings: result.fraud_rings.map(r => ({
         ring_id: r.ring_id,
-        member_accounts: r.member_accounts,
+        member_accounts: [...r.member_accounts].sort(),
         pattern_type: r.pattern_type,
-        risk_score: r.risk_score,
+        risk_score: f1(r.risk_score),
       })),
       summary: {
         total_accounts_analyzed: result.summary.total_accounts_analyzed,
         suspicious_accounts_flagged: result.summary.suspicious_accounts_flagged,
         fraud_rings_detected: result.summary.fraud_rings_detected,
-        processing_time_seconds: result.summary.processing_time_seconds,
+        processing_time_seconds: f1(result.summary.processing_time_seconds),
       },
     }
-    const blob = new Blob([JSON.stringify(specOutput, null, 2)], { type: 'application/json' })
+    // Custom replacer: ensure floats have exactly 1 decimal place
+    const json = JSON.stringify(specOutput, null, 2).replace(
+      /"(suspicion_score|risk_score|processing_time_seconds)":\s*(\d+)(?!\.)(?=\s*[,\n}])/g,
+      '"$1": $2.0'
+    )
+    const blob = new Blob([json], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

@@ -53,14 +53,20 @@ def detect_all(df: pd.DataFrame) -> Tuple[List[dict], Dict[str, List[str]], Dict
             if "layered_shell" not in account_patterns[acc]:
                 account_patterns[acc].append("layered_shell")
 
-    # Deduplicate rings
-    seen = set()
-    unique_rings = []
+    # Deduplicate rings — same set of member accounts = same ring,
+    # regardless of pattern_type or member ordering.
+    seen: dict[frozenset, int] = {}
+    unique_rings: list[dict] = []
     for r in rings:
-        key = (tuple(r["members"]), r["pattern_type"])
+        key = frozenset(r["members"])
         if key not in seen:
-            seen.add(key)
+            seen[key] = len(unique_rings)
             unique_rings.append(r)
+        else:
+            # Merge pattern_type info into the surviving ring if different
+            existing = unique_rings[seen[key]]
+            if r["pattern_type"] != existing["pattern_type"]:
+                existing["pattern_type"] = f"{existing['pattern_type']}+{r['pattern_type']}"
 
     # 4. Graph centrality
     centrality = _compute_centrality(G)
