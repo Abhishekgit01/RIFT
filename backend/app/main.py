@@ -36,13 +36,16 @@ async def analyze(file: UploadFile = File(...)):
         raise HTTPException(400, "File must be UTF-8 encoded")
 
     df = parse_csv(text)
+
+    # Build profiles once, reuse everywhere
+    profiles = _build_profiles(df)
+
     rings, account_patterns, centrality = detect_all(df)
     result = compute_scores(df, rings, account_patterns, centrality)
     elapsed = round(time.time() - start, 1)
     output = build_output(df, result, elapsed, centrality)
 
-    # Generate AI risk narratives
-    profiles = _build_profiles(df)
+    # Generate AI risk narratives (reuse profiles)
     narratives = generate_all_narratives(result, profiles)
     output["narratives"] = narratives
 
