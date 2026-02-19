@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import type { AnalysisResult, TooltipData } from './types'
+import type { AnalysisResult } from './types'
 import GraphView from './GraphView'
 import RingTable from './RingTable'
 import AccountDetailPanel from './AccountDetailPanel'
 import Dashboard from './Dashboard'
+import GlassSurface from './GlassSurface'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
@@ -78,19 +79,44 @@ function App() {
 
       {!result && (
         <div className="upload-section">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.5">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#777" strokeWidth="1.5">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          <label>
-            {file ? file.name : 'Choose CSV File'}
-            <input type="file" accept=".csv" onChange={handleFileChange} />
-          </label>
+
+          <GlassSurface
+            width="auto"
+            height="auto"
+            borderRadius={10}
+            brightness={30}
+            opacity={0.9}
+            blur={8}
+            className="cursor-pointer"
+            style={{ cursor: 'pointer' }}
+          >
+            <label style={{ cursor: 'pointer', padding: '10px 28px', fontWeight: 600, fontSize: '0.95rem', color: '#e8e8e8' }}>
+              {file ? file.name : 'Choose CSV File'}
+              <input type="file" accept=".csv" onChange={handleFileChange} />
+            </label>
+          </GlassSurface>
+
           {file && <span className="file-info">{(file.size / 1024).toFixed(1)} KB</span>}
-          <button className="analyze-btn" disabled={!file || loading} onClick={handleAnalyze}>
-            {loading ? 'Analyzing...' : 'Analyze Transactions'}
-          </button>
+
+          <GlassSurface
+            width="auto"
+            height="auto"
+            borderRadius={10}
+            brightness={35}
+            opacity={0.9}
+            blur={8}
+            onClick={(!file || loading) ? undefined : handleAnalyze}
+            style={{ cursor: (!file || loading) ? 'not-allowed' : 'pointer', opacity: (!file || loading) ? 0.4 : 1 }}
+          >
+            <span style={{ padding: '10px 36px', fontWeight: 600, fontSize: '1rem', color: '#e8e8e8' }}>
+              {loading ? 'Analyzing...' : 'Analyze Transactions'}
+            </span>
+          </GlassSurface>
         </div>
       )}
 
@@ -111,11 +137,11 @@ function App() {
               <div className="label">Accounts Analyzed</div>
             </div>
             <div className="summary-card">
-              <div className="value" style={{ color: '#ef4444' }}>{result.summary.suspicious_accounts_flagged}</div>
+              <div className="value" style={{ color: '#e54545' }}>{result.summary.suspicious_accounts_flagged}</div>
               <div className="label">Suspicious Accounts</div>
             </div>
             <div className="summary-card">
-              <div className="value" style={{ color: '#f59e0b' }}>{result.summary.fraud_rings_detected}</div>
+              <div className="value" style={{ color: '#d4943a' }}>{result.summary.fraud_rings_detected}</div>
               <div className="label">Fraud Rings</div>
             </div>
             <div className="summary-card">
@@ -124,28 +150,55 @@ function App() {
             </div>
           </div>
 
-            <Dashboard data={result} />
+          <Dashboard data={result} />
 
-            <div className="graph-container">
+          <div className="graph-container">
             <h2>Transaction Network Graph</h2>
-              <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
-            </div>
+            <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
+          </div>
 
-            <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
+          <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
 
           <div className="actions">
-              <button className="download-btn" onClick={handleDownload}>Download JSON Report</button>
-              <button className="reset-btn" onClick={handleReset}>New Analysis</button>
-            </div>
+            <GlassSurface
+              width="auto"
+              height="auto"
+              borderRadius={10}
+              brightness={30}
+              opacity={0.9}
+              blur={8}
+              onClick={handleDownload}
+              style={{ cursor: 'pointer' }}
+            >
+              <span style={{ padding: '10px 28px', fontWeight: 600, color: '#e8e8e8' }}>
+                Download JSON Report
+              </span>
+            </GlassSurface>
 
-            {selectedAccountId && (
-              <AccountDetailPanel
-                accountId={selectedAccountId}
-                data={result}
-                onClose={() => setSelectedAccountId(null)}
-              />
-            )}
-          </>
+            <GlassSurface
+              width="auto"
+              height="auto"
+              borderRadius={10}
+              brightness={25}
+              opacity={0.9}
+              blur={8}
+              onClick={handleReset}
+              style={{ cursor: 'pointer' }}
+            >
+              <span style={{ padding: '10px 28px', fontWeight: 600, color: '#999' }}>
+                New Analysis
+              </span>
+            </GlassSurface>
+          </div>
+
+          {selectedAccountId && (
+            <AccountDetailPanel
+              accountId={selectedAccountId}
+              data={result}
+              onClose={() => setSelectedAccountId(null)}
+            />
+          )}
+        </>
       )}
     </div>
   )

@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import cytoscape from 'cytoscape'
 import type { AnalysisResult, TooltipData, GraphNode } from './types'
 
-const RING_COLORS = ['#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16']
+const RING_COLORS = ['#e54545', '#d4943a', '#9b7bd4', '#d46a90', '#3da8a0', '#cc7733', '#3da8cc', '#7aaa3d']
 
 interface Props {
   data: AnalysisResult
@@ -48,7 +48,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     data.graph.nodes.forEach(node => {
       const isSuspicious = node.suspicious
       const ringId = node.ring_id || ''
-      const color = ringId && ringColorMap[ringId] ? ringColorMap[ringId] : (isSuspicious ? '#ef4444' : '#4b5563')
+      const color = ringId && ringColorMap[ringId] ? ringColorMap[ringId] : (isSuspicious ? '#e54545' : '#555555')
 
       // Size by betweenness centrality: min 15, max 50
       const betweenness = node.betweenness || 0
@@ -67,7 +67,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           color,
           size: Math.round(size),
           borderWidth: ringMemberSet.has(node.id) ? 3 : 1,
-          borderColor: ringMemberSet.has(node.id) ? '#fff' : '#333',
+          borderColor: ringMemberSet.has(node.id) ? '#aaa' : '#222',
         },
       })
     })
@@ -101,6 +101,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
             'text-margin-y': 5,
             'border-width': 'data(borderWidth)',
             'border-color': 'data(borderColor)',
+            'text-outline-color': '#0e0e0e',
+            'text-outline-width': 1,
             'opacity': 1,
           } as any,
         },
@@ -108,8 +110,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           selector: 'edge',
           style: {
             'width': 1.5,
-            'line-color': '#2a3555',
-            'target-arrow-color': '#3b82f6',
+            'line-color': '#333333',
+            'target-arrow-color': '#666666',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'arrow-scale': 0.8,
@@ -351,7 +353,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
             </>
           )}
           {!tooltip.node.suspicious && (
-            <div style={{ color: '#8892a8', fontSize: '0.8rem', marginTop: 4 }}>No suspicious activity</div>
+            <div style={{ color: '#777', fontSize: '0.8rem', marginTop: 4 }}>No suspicious activity</div>
           )}
         </div>
       )}

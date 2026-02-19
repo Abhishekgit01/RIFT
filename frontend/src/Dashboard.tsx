@@ -144,7 +144,7 @@ export default function Dashboard({ data }: Props) {
                   <path key={i} d={arc.d} fill={arc.color} opacity={0.85} />
                 ))
               )}
-              <circle cx="50" cy="50" r="22" fill="var(--surface)" />
+              <circle cx="50" cy="50" r="22" fill="var(--surface2)" />
               <text x="50" y="48" textAnchor="middle" fill="var(--text)" fontSize="10" fontWeight="700">
                 {pieTotal}
               </text>

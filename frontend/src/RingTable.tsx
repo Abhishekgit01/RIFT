@@ -18,7 +18,7 @@ export default function RingTable({ rings, selectedRingId, onSelectRing }: Props
     return (
       <div className="ring-table-container">
         <h2>Fraud Ring Summary</h2>
-        <div style={{ padding: '24px', textAlign: 'center', color: '#8892a8' }}>
+        <div style={{ padding: '24px', textAlign: 'center', color: '#777' }}>
           No fraud rings detected
         </div>
       </div>
