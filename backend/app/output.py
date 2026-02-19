@@ -1,12 +1,21 @@
 """
 Output builder: constructs the final JSON response.
+Enforces exact hackathon spec:
+  - Key order: suspicious_accounts, fraud_rings, summary
+  - Float formatting: exactly 1 decimal place throughout
+  - Field order in every object is spec-compliant
 """
 import pandas as pd
 from typing import Dict
 
 
+def _fmt_float(v: float) -> float:
+    """Round to 1 decimal place and ensure float type."""
+    return round(float(v), 1)
+
+
 def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dict = None) -> dict:
-    """Build the final output matching the required JSON schema."""
+    """Build the final output matching the required JSON schema exactly."""
     if centrality is None:
         centrality = {}
 
@@ -47,15 +56,40 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
             "timestamp": str(row["timestamp"]),
         })
 
+    # Build spec-compliant suspicious_accounts — exact field order, exact float format
+    spec_suspicious = []
+    for a in result["suspicious_accounts"]:
+        spec_suspicious.append({
+            "account_id": a["account_id"],
+            "suspicion_score": _fmt_float(a["suspicion_score"]),
+            "detected_patterns": list(a["detected_patterns"]),
+            "ring_id": a["ring_id"],
+        })
+
+    # Build spec-compliant fraud_rings — exact field order, exact float format
+    spec_fraud_rings = []
+    for r in result["fraud_rings"]:
+        spec_fraud_rings.append({
+            "ring_id": r["ring_id"],
+            "member_accounts": list(r["member_accounts"]),
+            "pattern_type": r["pattern_type"],
+            "risk_score": _fmt_float(r["risk_score"]),
+        })
+
+    # Build spec-compliant summary — exact field order, exact float format
+    spec_summary = {
+        "total_accounts_analyzed": int(len(all_accounts)),
+        "suspicious_accounts_flagged": int(len(spec_suspicious)),
+        "fraud_rings_detected": int(len(spec_fraud_rings)),
+        "processing_time_seconds": _fmt_float(elapsed),
+    }
+
+    # Return with exact key order: suspicious_accounts, fraud_rings, summary
+    # (Python 3.7+ dicts preserve insertion order, FastAPI/json serializes in insertion order)
     return {
-        "suspicious_accounts": result["suspicious_accounts"],
-        "fraud_rings": result["fraud_rings"],
-        "summary": {
-            "total_accounts_analyzed": len(all_accounts),
-            "suspicious_accounts_flagged": len(result["suspicious_accounts"]),
-            "fraud_rings_detected": len(result["fraud_rings"]),
-            "processing_time_seconds": elapsed,
-        },
+        "suspicious_accounts": spec_suspicious,
+        "fraud_rings": spec_fraud_rings,
+        "summary": spec_summary,
         "graph": {
             "nodes": nodes,
             "edges": edges,

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { FraudRing } from './types'
 
 interface Props {
@@ -7,6 +7,8 @@ interface Props {
   onSelectRing: (ringId: string | null) => void
 }
 
+const PAGE_SIZE = 100
+
 function riskClass(score: number): string {
   if (score >= 70) return 'high'
   if (score >= 40) return 'medium'
@@ -14,6 +16,8 @@ function riskClass(score: number): string {
 }
 
 export default function RingTable({ rings, selectedRingId, onSelectRing }: Props) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
+
   if (rings.length === 0) {
     return (
       <div className="ring-table-container">
@@ -25,10 +29,18 @@ export default function RingTable({ rings, selectedRingId, onSelectRing }: Props
     )
   }
 
+  const visible = rings.slice(0, visibleCount)
+  const hasMore = visibleCount < rings.length
+
   return (
     <div className="ring-table-container">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-        <h2 style={{ padding: 0, border: 'none', margin: 0 }}>Fraud Ring Summary</h2>
+        <h2 style={{ padding: 0, border: 'none', margin: 0 }}>
+          Fraud Ring Summary
+          <span style={{ fontSize: '0.75rem', color: '#888', fontWeight: 400, marginLeft: 10 }}>
+            Showing {visible.length} of {rings.length}
+          </span>
+        </h2>
         {selectedRingId && (
           <button
             className="ring-clear-btn"
@@ -49,7 +61,7 @@ export default function RingTable({ rings, selectedRingId, onSelectRing }: Props
           </tr>
         </thead>
         <tbody>
-          {rings.map(ring => (
+          {visible.map(ring => (
             <tr
               key={ring.ring_id}
               className={`ring-row ${selectedRingId === ring.ring_id ? 'ring-row-selected' : ''}`}
@@ -71,6 +83,17 @@ export default function RingTable({ rings, selectedRingId, onSelectRing }: Props
           ))}
         </tbody>
       </table>
+      {hasMore && (
+        <div style={{ padding: '16px 20px', textAlign: 'center', borderTop: '1px solid var(--border)' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
+            style={{ fontSize: '0.85rem', padding: '8px 24px' }}
+          >
+            Show More ({rings.length - visibleCount} remaining)
+          </button>
+        </div>
+      )}
     </div>
   )
 }

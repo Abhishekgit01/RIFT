@@ -6,6 +6,7 @@ import AccountDetailPanel from './AccountDetailPanel'
 import Dashboard from './Dashboard'
 
 import SankeyDiagram from './SankeyDiagram'
+import ScanLoader from './ScanLoader'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
@@ -127,11 +128,28 @@ function App() {
 
   const handleDownload = () => {
     if (!result) return
-    const blob = new Blob([JSON.stringify({
-      suspicious_accounts: result.suspicious_accounts,
-      fraud_rings: result.fraud_rings,
-      summary: result.summary,
-    }, null, 2)], { type: 'application/json' })
+    // Rebuild JSON with exact hackathon spec: key order, field order, only required fields
+    const specOutput = {
+      suspicious_accounts: result.suspicious_accounts.map(a => ({
+        account_id: a.account_id,
+        suspicion_score: a.suspicion_score,
+        detected_patterns: a.detected_patterns,
+        ring_id: a.ring_id,
+      })),
+      fraud_rings: result.fraud_rings.map(r => ({
+        ring_id: r.ring_id,
+        member_accounts: r.member_accounts,
+        pattern_type: r.pattern_type,
+        risk_score: r.risk_score,
+      })),
+      summary: {
+        total_accounts_analyzed: result.summary.total_accounts_analyzed,
+        suspicious_accounts_flagged: result.summary.suspicious_accounts_flagged,
+        fraud_rings_detected: result.summary.fraud_rings_detected,
+        processing_time_seconds: result.summary.processing_time_seconds,
+      },
+    }
+    const blob = new Blob([JSON.stringify(specOutput, null, 2)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -189,12 +207,7 @@ function App() {
           )}
         </div>
 
-        {loading && (
-          <div className="loading">
-            <div className="spinner" />
-            <p>Processing transactions and detecting fraud rings...</p>
-          </div>
-        )}
+          {loading && <ScanLoader />}
 
         {error && <div className="error">{error}</div>}
 

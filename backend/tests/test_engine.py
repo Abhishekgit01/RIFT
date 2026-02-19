@@ -143,7 +143,7 @@ def test_detect_shell_basic():
 def test_scoring_output_format():
     with open(FIXTURE_PATH) as f:
         df = parse_csv(f.read())
-    rings, patterns = detect_all(df)
+    rings, patterns, centrality = detect_all(df)
     result = compute_scores(df, rings, patterns)
     assert "suspicious_accounts" in result
     assert "fraud_rings" in result
@@ -158,7 +158,7 @@ def test_scoring_output_format():
 def test_scoring_sorted():
     with open(FIXTURE_PATH) as f:
         df = parse_csv(f.read())
-    rings, patterns = detect_all(df)
+    rings, patterns, centrality = detect_all(df)
     result = compute_scores(df, rings, patterns)
     scores = [a["suspicion_score"] for a in result["suspicious_accounts"]]
     assert scores == sorted(scores, reverse=True)
