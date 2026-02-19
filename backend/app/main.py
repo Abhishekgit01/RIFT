@@ -3,8 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 from .parser import parse_csv
 from .detection import detect_all
-from .scoring import compute_scores
+from .scoring import compute_scores, _build_profiles
 from .output import build_output
+from .narrative import generate_all_narratives
 
 app = FastAPI(title="Financial Forensics Engine")
 
@@ -39,5 +40,10 @@ async def analyze(file: UploadFile = File(...)):
     result = compute_scores(df, rings, account_patterns, centrality)
     elapsed = round(time.time() - start, 1)
     output = build_output(df, result, elapsed, centrality)
+
+    # Generate AI risk narratives
+    profiles = _build_profiles(df)
+    narratives = generate_all_narratives(result, profiles)
+    output["narratives"] = narratives
 
     return output

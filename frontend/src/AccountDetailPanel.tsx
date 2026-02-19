@@ -118,10 +118,39 @@ export default function AccountDetailPanel({ accountId, data, onClose }: Props) 
           </div>
         )}
 
-        {/* Ring info */}
-        {ring && (
-          <div className="adp-section">
-            <h3>Ring Membership</h3>
+          {/* AI Risk Narrative */}
+          {data.narratives && (() => {
+            const narrative = data.narratives.find(n => n.account_id === accountId)
+            if (!narrative) return null
+            return (
+              <div className="adp-section adp-narrative">
+                <h3>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                  AI Risk Assessment
+                </h3>
+                <div className={`adp-narr-level adp-narr-${narrative.risk_level.toLowerCase()}`}>
+                  {narrative.risk_level} RISK
+                </div>
+                <p className="adp-narr-text">{narrative.narrative}</p>
+                {narrative.key_findings.length > 0 && (
+                  <div className="adp-narr-findings">
+                    <h4>Key Findings</h4>
+                    <ul>
+                      {narrative.key_findings.map((f, i) => <li key={i}>{f}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div className="adp-narr-action">
+                  <strong>Recommendation:</strong> {narrative.recommendation}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Ring info */}
+          {ring && (
+            <div className="adp-section">
+              <h3>Ring Membership</h3>
             <div className="adp-ring-info">
               <span className="adp-ring-label">{ring.ring_id}</span>
               <span className="adp-ring-type">{ring.pattern_type.replace(/_/g, ' ')}</span>

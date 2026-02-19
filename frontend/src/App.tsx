@@ -1,10 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { AnalysisResult } from './types'
 import GraphView from './GraphView'
 import RingTable from './RingTable'
 import AccountDetailPanel from './AccountDetailPanel'
 import Dashboard from './Dashboard'
-import GlassSurface from './GlassSurface'
+import NetworkScanner from './NetworkScanner'
+import ProtocolsPage from './ProtocolsPage'
+import ThreatFeed from './ThreatFeed'
+import SankeyDiagram from './SankeyDiagram'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
@@ -15,6 +18,19 @@ function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const [selectedRingId, setSelectedRingId] = useState<string | null>(null)
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
+  const [page, setPage] = useState<'home' | 'protocols'>('home')
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePos({ 
+        x: (e.clientX / window.innerWidth) * 100, 
+        y: (e.clientY / window.innerHeight) * 100 
+      })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
+  }, [])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null
@@ -70,95 +86,66 @@ function App() {
     setSelectedAccountId(null)
   }
 
+    /* ── Protocols page ── */
+    if (page === 'protocols') {
+      return <ProtocolsPage onBack={() => setPage('home')} />
+    }
+
     /* ── Landing page (before CSV results) ── */
     if (!result) {
       return (
         <>
           <div className="landing-bg" />
-          <div className="app" style={{ position: 'relative', zIndex: 1 }}>
+          <NetworkScanner active={!result} />
+          <div 
+            className="scanner-active-overlay" 
+            style={{ '--mouse-x': `${mousePos.x}%`, '--mouse-y': `${mousePos.y}%` } as React.CSSProperties} 
+          />
+          <div className="app" style={{ position: 'relative', zIndex: 10 }}>
             {/* Hero */}
             <div className="landing-hero">
-              <div className="landing-badge">Money Muling Detection</div>
+              <div className="landing-badge">Mule Network Forensics v2.0</div>
               <h1>Financial Forensics Engine</h1>
               <p>
-                Detect money mule networks, trace suspicious transaction chains
-                and uncover fraud rings hidden in your data.
+                The industry's most advanced tool for identifying complex money laundering networks 
+                and uncovering fraud rings hidden within massive datasets.
               </p>
             </div>
 
-            {/* Feature cards using GlassSurface */}
-            <div className="landing-features">
-              <GlassSurface width="auto" height="auto" borderRadius={14} brightness={25} opacity={0.85} blur={14}>
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <div className="landing-feature-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7ec8f0" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 8.5c0-.8.7-1.5 1.5-1.5h1.5c1.1 0 2 .9 2 2s-.9 2-2 2h-2c-1.1 0-2 .9-2 2s.9 2 2 2h1.5c.8 0 1.5-.7 1.5-1.5"/></svg>
-                  </div>
-                  <div className="landing-feature-title">Mule Detection</div>
-                  <div className="landing-feature-desc">Flag accounts exhibiting rapid pass-through and layering patterns</div>
-                </div>
-              </GlassSurface>
+            {/* Upload */}
+            <div className="upload-inline">
+              <label className="csv-glass-btn">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                {file ? file.name : 'Choose CSV File'}
+                <input type="file" accept=".csv" onChange={handleFileChange} />
+              </label>
 
-              <GlassSurface width="auto" height="auto" borderRadius={14} brightness={25} opacity={0.85} blur={14}>
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <div className="landing-feature-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#e87070" strokeWidth="1.5"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="8.5" y1="7" x2="15.5" y2="17"/><line x1="15.5" y1="7" x2="8.5" y2="17"/></svg>
-                  </div>
-                  <div className="landing-feature-title">Ring Analysis</div>
-                  <div className="landing-feature-desc">Graph-based community detection to expose coordinated fraud rings</div>
-                </div>
-              </GlassSurface>
+              {file && <span className="file-info">{(file.size / 1024).toFixed(1)} KB READY FOR ANALYSIS</span>}
 
-              <GlassSurface width="auto" height="auto" borderRadius={14} brightness={25} opacity={0.85} blur={14}>
-                <div style={{ padding: '20px', textAlign: 'center' }}>
-                  <div className="landing-feature-icon">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3daa5c" strokeWidth="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-                  </div>
-                  <div className="landing-feature-title">Network Forensics</div>
-                  <div className="landing-feature-desc">Centrality metrics and transaction flow tracing across accounts</div>
-                </div>
-              </GlassSurface>
+              {file && (
+                <button
+                  className="analyze-glow-btn"
+                  disabled={loading}
+                  onClick={handleAnalyze}
+                  style={{ background: 'var(--cyber-red)', boxShadow: '0 0 20px rgba(255, 0, 60, 0.4)' }}
+                >
+                  {loading ? 'INITIALIZING SCAN...' : 'EXECUTE ANALYSIS'}
+                </button>
+              )}
             </div>
 
-            {/* Upload area */}
-            <div className="upload-section">
-              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.5">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
+              {/* Protocols link */}
+              <div className="protocols-link-section">
+                <button className="protocols-link-btn" onClick={() => setPage('protocols')}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                  Explore Detection Protocols
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+                <p className="protocols-link-sub">Learn how our 6-layer forensic engine detects mules, rings, and shell networks</p>
+              </div>
 
-              <GlassSurface
-                width="auto"
-                height="auto"
-                borderRadius={10}
-                brightness={30}
-                opacity={0.9}
-                blur={8}
-                style={{ cursor: 'pointer' }}
-              >
-                <label style={{ cursor: 'pointer', padding: '10px 28px', fontWeight: 600, fontSize: '0.95rem', color: '#e8e8e8' }}>
-                  {file ? file.name : 'Choose CSV File'}
-                  <input type="file" accept=".csv" onChange={handleFileChange} />
-                </label>
-              </GlassSurface>
-
-              {file && <span className="file-info">{(file.size / 1024).toFixed(1)} KB</span>}
-
-              <GlassSurface
-                width="auto"
-                height="auto"
-                borderRadius={10}
-                brightness={35}
-                opacity={0.9}
-                blur={8}
-                onClick={(!file || loading) ? undefined : handleAnalyze}
-                style={{ cursor: (!file || loading) ? 'not-allowed' : 'pointer', opacity: (!file || loading) ? 0.4 : 1 }}
-              >
-                <span style={{ padding: '10px 36px', fontWeight: 600, fontSize: '1rem', color: '#e8e8e8' }}>
-                  {loading ? 'Analyzing...' : 'Analyze Transactions'}
-                </span>
-              </GlassSurface>
-            </div>
+              {/* Live Threat Feed */}
+              <ThreatFeed />
 
             {loading && (
               <div className="loading">
@@ -205,6 +192,8 @@ function App() {
         </div>
 
         <Dashboard data={result} />
+
+        <SankeyDiagram data={result} />
 
         <div className="graph-container">
           <h2>Transaction Network Graph</h2>

@@ -37,6 +37,16 @@ export interface GraphEdge {
   timestamp: string
 }
 
+export interface Narrative {
+  account_id: string
+  narrative: string
+  risk_level: string
+  recommendation: string
+  key_findings: string[]
+  pattern_count: number
+  score: number
+}
+
 export interface AnalysisResult {
   suspicious_accounts: SuspiciousAccount[]
   fraud_rings: FraudRing[]
@@ -45,6 +55,7 @@ export interface AnalysisResult {
     nodes: GraphNode[]
     edges: GraphEdge[]
   }
+  narratives?: Narrative[]
 }
 
 export interface TooltipData {
