@@ -7,8 +7,13 @@ const RING_COLORS = [
   '#e54545', '#d4943a', '#9b7bd4', '#d46a90', '#3da8a0', '#cc7733', '#3da8cc', '#7aaa3d',
   '#ef476f', '#ffd60a', '#70e000', '#0077b6', '#c77dff', '#f77f00', '#4cc9f0', '#80b918'
 ]
-const MAX_NODES = 400
-const MAX_EDGES = 1200
+// Scale caps with dataset size so small graphs stay snappy but large ones
+// still show the surrounding "blue ocean" of safe nodes.
+function getGraphCaps(totalNodes: number, totalEdges: number) {
+  const nodeCap = Math.min(Math.max(400, Math.round(totalNodes * 0.12)), 900)
+  const edgeCap = Math.min(Math.max(1200, Math.round(totalEdges * 0.15)), 3000)
+  return { nodeCap, edgeCap }
+}
 
 interface Props {
   data: AnalysisResult
@@ -50,30 +55,57 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     const ringMemberSet = new Set<string>()
     data.fraud_rings.forEach(r => r.member_accounts.forEach(m => ringMemberSet.add(m)))
 
-    // Step 1: pick edges first (prioritize suspicious edges)
-    const edgesSorted = [...data.graph.edges].sort((a, b) => {
-      const aSusp = (ringMemberSet.has(a.source) && ringMemberSet.has(a.target)) ? 1 : 0
-      const bSusp = (ringMemberSet.has(b.source) && ringMemberSet.has(b.target)) ? 1 : 0
-      if (aSusp !== bSusp) return bSusp - aSusp
-      return b.amount - a.amount
-    })
-    const pickedEdges = edgesSorted.slice(0, MAX_EDGES)
+    const { nodeCap, edgeCap } = getGraphCaps(data.graph.nodes.length, data.graph.edges.length)
+
+    // Step 1: split edge budget so safe/blue edges are always visible.
+    // 65% for suspicious (both endpoints ring/suspicious), 35% for normal.
+    const suspEdgeBudget = Math.round(edgeCap * 0.65)
+    const normalEdgeBudget = edgeCap - suspEdgeBudget
+
+    const suspEdges: typeof data.graph.edges = []
+    const normalEdges: typeof data.graph.edges = []
+    for (const e of data.graph.edges) {
+      if (ringMemberSet.has(e.source) && ringMemberSet.has(e.target)) suspEdges.push(e)
+      else normalEdges.push(e)
+    }
+    // Sort each bucket by amount desc (most impactful first)
+    suspEdges.sort((a, b) => b.amount - a.amount)
+    normalEdges.sort((a, b) => b.amount - a.amount)
+
+    const pickedEdges = [
+      ...suspEdges.slice(0, suspEdgeBudget),
+      ...normalEdges.slice(0, normalEdgeBudget),
+    ]
 
     // Step 2: only include nodes that appear in picked edges (guarantees connectivity)
     const connectedIds = new Set<string>()
     pickedEdges.forEach(e => { connectedIds.add(e.source); connectedIds.add(e.target) })
 
-    // Cap nodes - if too many, keep most important
+    // Cap nodes — reserve ≥25% for non-suspicious nodes so blue ocean is visible
     let finalNodeIds = connectedIds
-    if (connectedIds.size > MAX_NODES) {
+    if (connectedIds.size > nodeCap) {
       const nodeMap = new Map(data.graph.nodes.map(n => [n.id, n]))
-      const sorted = [...connectedIds].sort((a, b) => {
-        const na = nodeMap.get(a), nb = nodeMap.get(b)
-        const aScore = (na?.suspicious ? 100 : 0) + (ringMemberSet.has(a) ? 50 : 0) + ((na?.betweenness || 0) * 1000)
-        const bScore = (nb?.suspicious ? 100 : 0) + (ringMemberSet.has(b) ? 50 : 0) + ((nb?.betweenness || 0) * 1000)
-        return bScore - aScore
-      })
-      finalNodeIds = new Set(sorted.slice(0, MAX_NODES))
+      const suspNodes: string[] = []
+      const safeNodes: string[] = []
+      for (const id of connectedIds) {
+        const nd = nodeMap.get(id)
+        if (nd?.suspicious || ringMemberSet.has(id)) suspNodes.push(id)
+        else safeNodes.push(id)
+      }
+      // Sort each bucket by importance
+      const score = (id: string) => {
+        const nd = nodeMap.get(id)
+        return (nd?.suspicious ? 100 : 0) + (ringMemberSet.has(id) ? 50 : 0) + ((nd?.betweenness || 0) * 1000)
+      }
+      suspNodes.sort((a, b) => score(b) - score(a))
+      safeNodes.sort((a, b) => score(b) - score(a))
+
+      const safeFloor = Math.min(Math.round(nodeCap * 0.25), safeNodes.length)
+      const suspCeil = nodeCap - safeFloor
+      finalNodeIds = new Set([
+        ...suspNodes.slice(0, suspCeil),
+        ...safeNodes.slice(0, safeFloor),
+      ])
     }
 
     // Step 3: filter edges to only those with both endpoints in final set
@@ -99,13 +131,13 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       // All ring members get their ring's color; suspicious-only get red; clean nodes get steely blue
       const color = (ringId && ringColorMap[ringId])
         ? ringColorMap[ringId]
-        : (isSusp ? '#ff4d6d' : '#3a6f9f')
+        : (isSusp ? '#ff4d6d' : '#5aafdf')
       const betweenness = node.betweenness || 0
       const centralitySize = 22 + (betweenness / maxBetweenness) * 38
       // All nodes are circles (ellipse) — size differentiates importance
       const size = isSusp
         ? Math.max(36, centralitySize)
-        : (isRingMember ? Math.max(26, centralitySize * 0.85) : Math.max(14, centralitySize * 0.55))
+        : (isRingMember ? Math.max(26, centralitySize * 0.85) : Math.max(18, centralitySize * 0.6))
 
       elements.push({
         data: {
@@ -120,8 +152,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           color,
           size: Math.round(size),
           // Bold visible border for ring & suspicious nodes
-          borderWidth: isSusp ? 3 : (isRingMember ? 2 : 0.8),
-          borderColor: isSusp ? '#ffffff' : (isRingMember ? '#ffffff' : 'rgba(255,255,255,0.12)'),
+          borderWidth: isSusp ? 3 : (isRingMember ? 2 : 1.2),
+          borderColor: isSusp ? '#ffffff' : (isRingMember ? '#ffffff' : 'rgba(140, 200, 255, 0.35)'),
           // All shapes are ellipse (circle) — matches screenshot
           shape: 'ellipse',
         },
