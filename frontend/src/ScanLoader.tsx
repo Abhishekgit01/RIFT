@@ -21,6 +21,7 @@ export default function ScanLoader() {
   const [nonce, setNonce] = useState('00000000')
   const [elapsed, setElapsed] = useState('0.0')
   const mountTime = useRef(Date.now())
+  const progressRef = useRef(0)
 
   // Progress simulation
   useEffect(() => {
@@ -29,6 +30,7 @@ export default function ScanLoader() {
         const target = STAGES[stageIdx]?.pct ?? 99
         const step = Math.random() * 1.8 + 0.3
         const next = Math.min(prev + step, target)
+        progressRef.current = next
         if (next >= target && stageIdx < STAGES.length - 1) {
           setStageIdx(s => s + 1)
         }
@@ -58,17 +60,19 @@ export default function ScanLoader() {
     return () => clearInterval(interval)
   }, [progress])
 
-  // Stats ticker - single interval for everything
+  // Stats ticker - single interval for everything (uses ref to avoid
+  // teardown every time progress changes, which prevented the timer firing)
   useEffect(() => {
     const interval = setInterval(() => {
       const secs = (Date.now() - mountTime.current) / 1000
+      const p = progressRef.current
       setElapsed(secs.toFixed(1))
-      setHashRate(Math.floor(Math.random() * 400 + 800 + progress * 12))
-      setTxProcessed(Math.floor(secs * (40 + progress * 2)))
+      setHashRate(Math.floor(Math.random() * 400 + 800 + p * 12))
+      setTxProcessed(Math.floor(secs * (40 + p * 2)))
       setNonce((Date.now() * 7).toString(16).slice(-8).toUpperCase())
     }, 250)
     return () => clearInterval(interval)
-  }, [progress])
+  }, [])
 
   return (
     <div className="scan-loader">
