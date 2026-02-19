@@ -70,12 +70,18 @@ function App() {
     setSelectedAccountId(null)
   }
 
-  return (
-    <div className="app">
-      <header>
-        <h1>Financial Forensics Engine</h1>
-        <p>Upload transaction CSV to detect money muling networks</p>
-      </header>
+    return (
+      <div className="app">
+        <header>
+          <div className="header-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7ec8f0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 6v12M9 8.5c0-.8.7-1.5 1.5-1.5h1.5c1.1 0 2 .9 2 2s-.9 2-2 2h-2c-1.1 0-2 .9-2 2s.9 2 2 2h1.5c.8 0 1.5-.7 1.5-1.5" />
+            </svg>
+          </div>
+          <h1>Financial Forensics Engine</h1>
+          <p>Upload transaction CSV to detect money muling networks</p>
+        </header>
 
       {!result && (
         <div className="upload-section">
@@ -129,33 +135,53 @@ function App() {
 
       {error && <div className="error">{error}</div>}
 
-      {result && (
-        <>
-          <div className="summary-grid">
-            <div className="summary-card">
-              <div className="value">{result.summary.total_accounts_analyzed}</div>
-              <div className="label">Accounts Analyzed</div>
-            </div>
-            <div className="summary-card">
-              <div className="value" style={{ color: '#e54545' }}>{result.summary.suspicious_accounts_flagged}</div>
-              <div className="label">Suspicious Accounts</div>
-            </div>
-            <div className="summary-card">
-              <div className="value" style={{ color: '#d4943a' }}>{result.summary.fraud_rings_detected}</div>
-              <div className="label">Fraud Rings</div>
-            </div>
-            <div className="summary-card">
-              <div className="value">{result.summary.processing_time_seconds}s</div>
-              <div className="label">Processing Time</div>
-            </div>
-          </div>
+        {result && (
+          <>
+            <GlassSurface
+              width="100%"
+              height="auto"
+              borderRadius={16}
+              brightness={20}
+              opacity={0.85}
+              blur={10}
+              style={{ marginBottom: 24 }}
+            >
+              <div className="summary-grid" style={{ width: '100%', margin: 0 }}>
+                <div className="summary-card">
+                  <div className="value">{result.summary.total_accounts_analyzed}</div>
+                  <div className="label">Accounts Analyzed</div>
+                </div>
+                <div className="summary-card">
+                  <div className="value" style={{ color: '#e54545' }}>{result.summary.suspicious_accounts_flagged}</div>
+                  <div className="label">Suspicious Accounts</div>
+                </div>
+                <div className="summary-card">
+                  <div className="value" style={{ color: '#d4943a' }}>{result.summary.fraud_rings_detected}</div>
+                  <div className="label">Fraud Rings</div>
+                </div>
+                <div className="summary-card">
+                  <div className="value">{result.summary.processing_time_seconds}s</div>
+                  <div className="label">Processing Time</div>
+                </div>
+              </div>
+            </GlassSurface>
 
           <Dashboard data={result} />
 
-          <div className="graph-container">
-            <h2>Transaction Network Graph</h2>
-            <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
-          </div>
+          <GlassSurface
+            width="100%"
+            height="auto"
+            borderRadius={14}
+            brightness={18}
+            opacity={0.8}
+            blur={8}
+            style={{ marginBottom: 24 }}
+          >
+            <div className="graph-container" style={{ width: '100%', margin: 0, border: 'none', background: 'transparent' }}>
+              <h2>Transaction Network Graph</h2>
+              <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
+            </div>
+          </GlassSurface>
 
           <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
 
