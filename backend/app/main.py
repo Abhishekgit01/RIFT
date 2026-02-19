@@ -35,9 +35,9 @@ async def analyze(file: UploadFile = File(...)):
         raise HTTPException(400, "File must be UTF-8 encoded")
 
     df = parse_csv(text)
-    rings, account_patterns = detect_all(df)
-    result = compute_scores(df, rings, account_patterns)
+    rings, account_patterns, centrality = detect_all(df)
+    result = compute_scores(df, rings, account_patterns, centrality)
     elapsed = round(time.time() - start, 1)
-    output = build_output(df, result, elapsed)
+    output = build_output(df, result, elapsed, centrality)
 
     return output

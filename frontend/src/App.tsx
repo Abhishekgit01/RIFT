@@ -1,15 +1,16 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState } from 'react'
 import type { AnalysisResult, TooltipData } from './types'
 import GraphView from './GraphView'
 import RingTable from './RingTable'
 
-const API_URL = import.meta.env.VITE_API_URL || ''
+const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
 function App() {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AnalysisResult | null>(null)
+  const [selectedRingId, setSelectedRingId] = useState<string | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null
@@ -61,6 +62,7 @@ function App() {
     setFile(null)
     setResult(null)
     setError(null)
+    setSelectedRingId(null)
   }
 
   return (
@@ -120,10 +122,10 @@ function App() {
 
           <div className="graph-container">
             <h2>Transaction Network Graph</h2>
-            <GraphView data={result} />
-          </div>
+              <GraphView data={result} selectedRingId={selectedRingId} />
+            </div>
 
-          <RingTable rings={result.fraud_rings} />
+            <RingTable rings={result.fraud_rings} selectedRingId={selectedRingId} onSelectRing={setSelectedRingId} />
 
           <div className="actions">
             <button className="download-btn" onClick={handleDownload}>Download JSON Report</button>

@@ -25,13 +25,18 @@ def compute_scores(
     df: pd.DataFrame,
     rings: List[dict],
     account_patterns: Dict[str, List[str]],
+    centrality: Dict[str, dict] = None,
 ) -> dict:
     """
     Compute suspicion_score per account and risk_score per ring.
     Apply false-positive controls for merchant-like and payroll-like accounts.
+    Incorporates graph centrality (PageRank + Betweenness) into scoring.
 
     Returns dict with keys: suspicious_accounts, fraud_rings
     """
+    if centrality is None:
+        centrality = {}
+
     # --- Build account profile ---
     profiles = _build_profiles(df)
 
@@ -56,6 +61,23 @@ def compute_scores(
             score += 5.0
             if "small_amounts" not in patterns:
                 account_patterns[acc].append("small_amounts")
+
+        # Centrality bonus: high betweenness = likely intermediary/mule
+        cent = centrality.get(acc, {})
+        betweenness = cent.get("betweenness", 0)
+        pagerank = cent.get("pagerank", 0)
+        if betweenness > 0.05:
+            score += 15.0
+            if "high_betweenness" not in patterns:
+                account_patterns[acc].append("high_betweenness")
+        elif betweenness > 0.02:
+            score += 8.0
+            if "high_betweenness" not in patterns:
+                account_patterns[acc].append("high_betweenness")
+        if pagerank > 0.02:
+            score += 5.0
+            if "high_pagerank" not in patterns:
+                account_patterns[acc].append("high_pagerank")
 
         raw_scores[acc] = score
 

@@ -3,6 +3,8 @@ import type { FraudRing } from './types'
 
 interface Props {
   rings: FraudRing[]
+  selectedRingId: string | null
+  onSelectRing: (ringId: string | null) => void
 }
 
 function riskClass(score: number): string {
@@ -11,7 +13,7 @@ function riskClass(score: number): string {
   return 'low'
 }
 
-export default function RingTable({ rings }: Props) {
+export default function RingTable({ rings, selectedRingId, onSelectRing }: Props) {
   if (rings.length === 0) {
     return (
       <div className="ring-table-container">
@@ -25,7 +27,17 @@ export default function RingTable({ rings }: Props) {
 
   return (
     <div className="ring-table-container">
-      <h2>Fraud Ring Summary</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+        <h2 style={{ padding: 0, border: 'none', margin: 0 }}>Fraud Ring Summary</h2>
+        {selectedRingId && (
+          <button
+            className="ring-clear-btn"
+            onClick={() => onSelectRing(null)}
+          >
+            Show All
+          </button>
+        )}
+      </div>
       <table className="ring-table">
         <thead>
           <tr>
@@ -38,7 +50,12 @@ export default function RingTable({ rings }: Props) {
         </thead>
         <tbody>
           {rings.map(ring => (
-            <tr key={ring.ring_id}>
+            <tr
+              key={ring.ring_id}
+              className={`ring-row ${selectedRingId === ring.ring_id ? 'ring-row-selected' : ''}`}
+              onClick={() => onSelectRing(selectedRingId === ring.ring_id ? null : ring.ring_id)}
+              style={{ cursor: 'pointer' }}
+            >
               <td style={{ fontWeight: 600 }}>{ring.ring_id}</td>
               <td>{ring.pattern_type}</td>
               <td>{ring.member_accounts.length}</td>

@@ -5,8 +5,11 @@ import pandas as pd
 from typing import Dict
 
 
-def build_output(df: pd.DataFrame, result: dict, elapsed: float) -> dict:
+def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dict = None) -> dict:
     """Build the final output matching the required JSON schema."""
+    if centrality is None:
+        centrality = {}
+
     all_accounts = set(df["sender_id"].unique()) | set(df["receiver_id"].unique())
 
     # Build graph data for frontend visualization
@@ -28,6 +31,10 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float) -> dict:
             node["suspicion_score"] = info["suspicion_score"]
             node["detected_patterns"] = info["detected_patterns"]
             node["ring_id"] = info["ring_id"]
+        # Add centrality metrics
+        cent = centrality.get(acc, {})
+        node["pagerank"] = cent.get("pagerank", 0)
+        node["betweenness"] = cent.get("betweenness", 0)
         nodes.append(node)
 
     edges = []

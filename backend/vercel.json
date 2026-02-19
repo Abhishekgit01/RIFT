@@ -1,0 +1,21 @@
+{
+  "builds": [
+    { "src": "app/main.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    {
+      "src": "/analyze",
+      "methods": ["OPTIONS"],
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "*"
+      },
+      "dest": "app/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "app/main.py"
+    }
+  ]
+}

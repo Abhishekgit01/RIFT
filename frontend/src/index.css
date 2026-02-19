@@ -324,3 +324,117 @@ button.reset-btn:hover {
   #cy { height: 350px; }
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Timeline controls */
+.timeline-controls {
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  padding: 12px 20px;
+}
+
+.timeline-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.timeline-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.timeline-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+.timeline-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-left: 4px;
+}
+
+.timeline-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeline-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.5);
+}
+
+.timeline-date {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  min-width: 120px;
+}
+
+.timeline-date:last-child {
+  text-align: right;
+}
+
+.timeline-current {
+  text-align: center;
+  color: var(--accent);
+  font-size: 0.8rem;
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+/* Ring row selection */
+.ring-row:hover {
+  background: var(--surface2);
+}
+
+.ring-row-selected {
+  background: rgba(59, 130, 246, 0.1) !important;
+  outline: 1px solid var(--accent);
+}
+
+.ring-clear-btn {
+  padding: 6px 16px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ring-clear-btn:hover {
+  background: var(--accent);
+  color: white;
+}

@@ -7,11 +7,12 @@ from collections import defaultdict
 from typing import Dict, List, Set, Tuple
 
 
-def detect_all(df: pd.DataFrame) -> Tuple[List[dict], Dict[str, List[str]]]:
+def detect_all(df: pd.DataFrame) -> Tuple[List[dict], Dict[str, List[str]], Dict[str, dict]]:
     """
     Run all detection algorithms. Returns:
       - rings: list of dicts with keys: members (sorted list), pattern_type (str)
       - account_patterns: dict mapping account_id -> list of pattern strings
+      - centrality: dict mapping account_id -> {pagerank, betweenness}
     """
     G = nx.DiGraph()
     for _, row in df.iterrows():
@@ -61,7 +62,10 @@ def detect_all(df: pd.DataFrame) -> Tuple[List[dict], Dict[str, List[str]]]:
             seen.add(key)
             unique_rings.append(r)
 
-    return unique_rings, dict(account_patterns)
+    # --- 4. Graph centrality metrics ---
+    centrality = _compute_centrality(G)
+
+    return unique_rings, dict(account_patterns), centrality
 
 
 def _detect_cycles(G: nx.DiGraph) -> List[Set[str]]:
@@ -179,3 +183,20 @@ def _find_shell_chains(G, current, shell_accounts, visited, chain, results, seen
                     results.append(set(new_chain))
 
         _find_shell_chains(G, neighbor, shell_accounts, visited_copy, new_chain, results, seen, depth + 1)
+
+
+def _compute_centrality(G: nx.DiGraph) -> Dict[str, dict]:
+    """Compute PageRank and betweenness centrality for all nodes."""
+    if len(G.nodes()) == 0:
+        return {}
+
+    pr = nx.pagerank(G, alpha=0.85, max_iter=100)
+    bc = nx.betweenness_centrality(G, normalized=True)
+
+    centrality = {}
+    for node in G.nodes():
+        centrality[node] = {
+            "pagerank": round(pr.get(node, 0), 6),
+            "betweenness": round(bc.get(node, 0), 6),
+        }
+    return centrality

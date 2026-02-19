@@ -25,6 +25,8 @@ export interface GraphNode {
   suspicion_score?: number
   detected_patterns?: string[]
   ring_id?: string
+  pagerank?: number
+  betweenness?: number
 }
 
 export interface GraphEdge {

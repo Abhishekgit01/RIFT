@@ -1,19 +1,17 @@
-import httpx
-import json
+import requests
 
-r = httpx.post(
+r = requests.post(
     "http://localhost:8000/analyze",
-    files={"file": ("fixture.csv", open("backend/tests/fixture.csv", "rb"), "text/csv")},
+    files={"file": ("test.csv", open(r"D:\Project\Money Mule\test_data.csv", "rb"), "text/csv")},
 )
-print(f"Status: {r.status_code}")
+print(r.status_code)
+import json
 data = r.json()
-print(f"Accounts analyzed: {data['summary']['total_accounts_analyzed']}")
-print(f"Suspicious flagged: {data['summary']['suspicious_accounts_flagged']}")
-print(f"Rings detected: {data['summary']['fraud_rings_detected']}")
-print(f"Processing time: {data['summary']['processing_time_seconds']}s")
-print(f"\nFraud rings:")
-for ring in data["fraud_rings"]:
-    print(f"  {ring['ring_id']}: {ring['pattern_type']} - {ring['member_accounts']} (risk: {ring['risk_score']})")
-print(f"\nSuspicious accounts:")
-for acc in data["suspicious_accounts"][:10]:
-    print(f"  {acc['account_id']}: score={acc['suspicion_score']}, patterns={acc['detected_patterns']}, ring={acc['ring_id']}")
+# Check centrality fields exist
+node = data["graph"]["nodes"][0]
+print("Node keys:", list(node.keys()))
+print("Sample node:", json.dumps(node, indent=2))
+print("Rings:", len(data["fraud_rings"]))
+print("Suspicious:", len(data["suspicious_accounts"]))
+if data["suspicious_accounts"]:
+    print("Sample account:", json.dumps(data["suspicious_accounts"][0], indent=2))
