@@ -3,6 +3,7 @@ import type { AnalysisResult, TooltipData } from './types'
 import GraphView from './GraphView'
 import RingTable from './RingTable'
 import AccountDetailPanel from './AccountDetailPanel'
+import Dashboard from './Dashboard'
 
 const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
@@ -123,7 +124,9 @@ function App() {
             </div>
           </div>
 
-          <div className="graph-container">
+            <Dashboard data={result} />
+
+            <div className="graph-container">
             <h2>Transaction Network Graph</h2>
               <GraphView data={result} selectedRingId={selectedRingId} onSelectAccount={setSelectedAccountId} />
             </div>
