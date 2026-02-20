@@ -8,13 +8,6 @@ const RING_COLORS = [
   '#ff4444', '#ffaa22', '#c084fc', '#ff6b9d', '#20e3b2', '#ff9933', '#bacdd0', '#7dff3a',
   '#ff006e', '#ffea00', '#39ff14', '#0096ff', '#d946ef', '#ff6d00', '#abbec2', '#84cc16'
 ]
-// Scale caps with dataset size so small graphs stay snappy but large ones
-// still show the surrounding "blue ocean" of safe nodes.
-function getGraphCaps(totalNodes: number, totalEdges: number) {
-  const nodeCap = Math.min(Math.max(400, Math.round(totalNodes * 0.12)), 900)
-  const edgeCap = Math.min(Math.max(1200, Math.round(totalEdges * 0.15)), 3000)
-  return { nodeCap, edgeCap }
-}
 
 interface Props {
   data: AnalysisResult
@@ -56,67 +49,15 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     const ringMemberSet = new Set<string>()
     data.fraud_rings.forEach(r => r.member_accounts.forEach(m => ringMemberSet.add(m)))
 
-    const { nodeCap, edgeCap } = getGraphCaps(data.graph.nodes.length, data.graph.edges.length)
+    // ── No caps — include ALL nodes and edges ──
+    const visibleNodes = data.graph.nodes
+    const visibleEdges = data.graph.edges
 
-    // Step 1: split edge budget so safe/blue edges are always visible.
-    // 65% for suspicious (both endpoints ring/suspicious), 35% for normal.
-    const suspEdgeBudget = Math.round(edgeCap * 0.65)
-    const normalEdgeBudget = edgeCap - suspEdgeBudget
-
-    const suspEdges: typeof data.graph.edges = []
-    const normalEdges: typeof data.graph.edges = []
-    for (const e of data.graph.edges) {
-      if (ringMemberSet.has(e.source) && ringMemberSet.has(e.target)) suspEdges.push(e)
-      else normalEdges.push(e)
-    }
-    // Sort each bucket by amount desc (most impactful first)
-    suspEdges.sort((a, b) => b.amount - a.amount)
-    normalEdges.sort((a, b) => b.amount - a.amount)
-
-    const pickedEdges = [
-      ...suspEdges.slice(0, suspEdgeBudget),
-      ...normalEdges.slice(0, normalEdgeBudget),
-    ]
-
-    // Step 2: only include nodes that appear in picked edges (guarantees connectivity)
-    const connectedIds = new Set<string>()
-    pickedEdges.forEach(e => { connectedIds.add(e.source); connectedIds.add(e.target) })
-
-    // Cap nodes — reserve ≥25% for non-suspicious nodes so blue ocean is visible
-    let finalNodeIds = connectedIds
-    if (connectedIds.size > nodeCap) {
-      const nodeMap = new Map(data.graph.nodes.map(n => [n.id, n]))
-      const suspNodes: string[] = []
-      const safeNodes: string[] = []
-      for (const id of connectedIds) {
-        const nd = nodeMap.get(id)
-        if (nd?.suspicious || ringMemberSet.has(id)) suspNodes.push(id)
-        else safeNodes.push(id)
-      }
-      // Sort each bucket by importance
-      const score = (id: string) => {
-        const nd = nodeMap.get(id)
-        return (nd?.suspicious ? 100 : 0) + (ringMemberSet.has(id) ? 50 : 0) + ((nd?.betweenness || 0) * 1000)
-      }
-      suspNodes.sort((a, b) => score(b) - score(a))
-      safeNodes.sort((a, b) => score(b) - score(a))
-
-      const safeFloor = Math.min(Math.round(nodeCap * 0.25), safeNodes.length)
-      const suspCeil = nodeCap - safeFloor
-      finalNodeIds = new Set([
-        ...suspNodes.slice(0, suspCeil),
-        ...safeNodes.slice(0, safeFloor),
-      ])
-    }
-
-    // Step 3: filter edges to only those with both endpoints in final set
-    const visibleEdges = pickedEdges.filter(e => finalNodeIds.has(e.source) && finalNodeIds.has(e.target))
-
-    // Recompute connected from final edges (ensures no orphans)
+    // Build connected set (for stats)
     const trulyConnected = new Set<string>()
     visibleEdges.forEach(e => { trulyConnected.add(e.source); trulyConnected.add(e.target) })
-
-    const visibleNodes = data.graph.nodes.filter(n => trulyConnected.has(n.id))
+    // Also include orphan nodes that appear in data but have no edges
+    visibleNodes.forEach(n => trulyConnected.add(n.id))
 
     const maxBetweenness = Math.max(...visibleNodes.map(n => n.betweenness || 0), 0.001)
     const amounts = visibleEdges.map(e => e.amount)
@@ -213,16 +154,22 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     } else if (mode === 'circle') {
       layoutConfig = { name: 'circle', animate: false, spacingFactor: 1.5 }
     } else {
+      // Scale CoSE parameters for any graph size — fast for 2K+ nodes
+      const numIter = nodeCount > 2000 ? 15
+        : nodeCount > 1000 ? 25
+        : nodeCount > 500 ? 40
+        : Math.min(100, Math.max(50, Math.round(600 / Math.max(nodeCount, 1) * 50)))
       layoutConfig = {
         name: 'cose',
         animate: false,
-        nodeOverlap: 30,
-        idealEdgeLength: () => nodeCount > 200 ? 120 : 90,
-        nodeRepulsion: () => nodeCount > 200 ? 10000 : 8000,
-        gravity: 0.4,
-        numIter: nodeCount > 200 ? 150 : 300,
+        quality: nodeCount > 800 ? 'draft' : 'default',
+        nodeOverlap: nodeCount > 1000 ? 80 : 40,
+        idealEdgeLength: () => nodeCount > 1000 ? 200 : (nodeCount > 300 ? 150 : 100),
+        nodeRepulsion: () => nodeCount > 1000 ? 18000 : (nodeCount > 300 ? 12000 : 9000),
+        gravity: nodeCount > 1000 ? 0.15 : 0.35,
+        numIter,
         randomize: true,
-        edgeElasticity: () => 100,
+        edgeElasticity: () => nodeCount > 1000 ? 60 : 80,
       }
     }
 
@@ -361,11 +308,11 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         { selector: '.timeline-hidden', style: { 'display': 'none' } as any },
       ],
       layout: layoutConfig,
-      textureOnViewport: nodeCount > 100,
-      hideEdgesOnViewport: nodeCount > 200,
+      textureOnViewport: nodeCount > 80,
+      hideEdgesOnViewport: nodeCount > 150,
       hideLabelsOnViewport: true,
       wheelSensitivity: 0.3,
-      pixelRatio: 1,
+      pixelRatio: nodeCount > 1000 ? 0.75 : 1,
     } as any)
 
     // Hover interactions
@@ -406,96 +353,125 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     cy.on('pan zoom', () => updateMinimap(cy))
 
     // ── Live force-directed physics ──
-    // Real physics: repulsion between all node pairs, edge spring attraction,
-    // random turbulence, center gravity, damping. NO cy.batch() — direct updates.
-    const DAMPING        = 0.92
-    const REPULSE_K      = 800        // Coulomb-like repulsion constant
-    const SPRING_K       = 0.006      // edge spring stiffness
-    const SPRING_LEN     = 120        // rest length for edge springs
-    const CENTER_GRAVITY = 0.0004     // pull toward center so graph doesn't fly off
-    const NUDGE_CHANCE   = 0.12       // 12% random perturbation per node/frame
-    const NUDGE_FORCE    = 1.2
-    const MAX_SPEED      = 4.0
-    const MIN_MOVE       = 0.01
-    const PAIRWISE_CAP   = 300        // full O(n²) repulsion up to this node count
+    // Spatial-grid accelerated repulsion + edge springs + turbulence.
+    // For large graphs (>500 nodes): springs + gravity + turbulence only (O(N+E)).
+    // For small graphs (<500): full spatial-grid repulsion.
+    const DAMPING        = 0.90
+    const REPULSE_K      = 600
+    const SPRING_K       = nodeCount > 1000 ? 0.003 : 0.005
+    const SPRING_LEN     = nodeCount > 1000 ? 200 : 130
+    const CENTER_GRAVITY = nodeCount > 1000 ? 0.002 : 0.0005
+    const NUDGE_CHANCE   = nodeCount > 1000 ? 0.04 : 0.10
+    const NUDGE_FORCE    = nodeCount > 1000 ? 0.5 : 1.0
+    const MAX_SPEED      = nodeCount > 1000 ? 2.0 : 3.5
+    const MIN_MOVE       = 0.02
+    const GRID_CELL      = 200       // spatial hash cell size
+    const REPULSE_CUTOFF = 500       // skip pairwise repulsion above this
+    const STYLE_FRAME    = nodeCount > 500 ? 6 : 3  // update styles every N frames
 
-    // Velocity store (keyed by id)
     const vel = new Map<string, { vx: number; vy: number }>()
     cy.nodes().forEach((n: any) => {
       vel.set(n.id(), { vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2 })
     })
 
-    // Build neighbour map from cy edges for spring forces
     const edgePairs: [string, string][] = []
     cy.edges().forEach((e: any) => {
       edgePairs.push([e.source().id(), e.target().id()])
     })
 
-    // Compute initial centroid for center gravity target
-    let cx = 0, cy2 = 0
+    let centCx = 0, centCy = 0
     const allN = cy.nodes().toArray()
-    allN.forEach((n: any) => { const p = n.position(); cx += p.x; cy2 += p.y })
-    const centroid = { x: allN.length ? cx / allN.length : 0, y: allN.length ? cy2 / allN.length : 0 }
+    allN.forEach((n: any) => { const p = n.position(); centCx += p.x; centCy += p.y })
+    const centroid = { x: allN.length ? centCx / allN.length : 0, y: allN.length ? centCy / allN.length : 0 }
 
     let grabbedNodeId: string | null = null
     cy.on('grab', 'node', (e: any) => { grabbedNodeId = e.target.id() })
     cy.on('free', 'node', (e: any) => {
-      // zero-out velocity on release so node doesn't shoot off
       const v = vel.get(e.target.id())
       if (v) { v.vx = 0; v.vy = 0 }
       grabbedNodeId = null
     })
 
-    // Animate suspicious edges (marching ants) + pulsing ring glow
     let offset = 0
     let glowPhase = 0
+    let frameCount = 0
 
     const animLoop = () => {
+      frameCount++
       offset = (offset + 0.6) % 12
       glowPhase = (glowPhase + 0.03) % (Math.PI * 2)
       const pulse = 0.55 + Math.sin(glowPhase) * 0.25
-      cy.edges('[?suspicious]').style('line-dash-offset', -offset)
-      cy.nodes('[?suspicious]').style('shadow-opacity', pulse)
+      // Only update styles every Nth frame to save DOM writes
+      if (frameCount % STYLE_FRAME === 0) {
+        cy.edges('[?suspicious]').style('line-dash-offset', -offset)
+        cy.nodes('[?suspicious]').style('shadow-opacity', pulse)
+      }
 
       // --- Physics tick ---
       const nodes = cy.nodes().filter((n: any) => !n.hasClass('timeline-hidden')).toArray()
+      const nLen = nodes.length
 
-      // Snapshot positions (read once per frame)
+      // Snapshot positions
       const pos: Record<string, { x: number; y: number }> = {}
-      nodes.forEach((n: any) => { const p = n.position(); pos[n.id()] = { x: p.x, y: p.y } })
+      for (let i = 0; i < nLen; i++) {
+        const p = nodes[i].position()
+        pos[nodes[i].id()] = { x: p.x, y: p.y }
+      }
 
-      // 1) Pairwise repulsion (Coulomb-like: F = K / d²)
-      if (nodes.length <= PAIRWISE_CAP) {
-        for (let i = 0; i < nodes.length; i++) {
+      // 1) Spatial-grid repulsion (O(n) average case)
+      if (nLen > 0 && nLen <= REPULSE_CUTOFF) {
+        // Build grid
+        const grid: Record<string, number[]> = {}
+        for (let i = 0; i < nLen; i++) {
+          const p = pos[nodes[i].id()]
+          const gx = Math.floor(p.x / GRID_CELL)
+          const gy = Math.floor(p.y / GRID_CELL)
+          const key = gx + ',' + gy
+          if (!grid[key]) grid[key] = []
+          grid[key].push(i)
+        }
+        // Check neighbours in 3x3 cells
+        for (let i = 0; i < nLen; i++) {
           const idA = nodes[i].id()
           if (idA === grabbedNodeId) continue
           const pA = pos[idA]
           const vA = vel.get(idA)!
-          for (let j = i + 1; j < nodes.length; j++) {
-            const idB = nodes[j].id()
-            if (idB === grabbedNodeId) continue
-            const pB = pos[idB]
-            const vB = vel.get(idB)!
-            let dx = pA.x - pB.x
-            let dy = pA.y - pB.y
-            let d2 = dx * dx + dy * dy
-            if (d2 < 1) { dx = (Math.random() - 0.5) * 2; dy = (Math.random() - 0.5) * 2; d2 = dx * dx + dy * dy }
-            const d = Math.sqrt(d2)
-            const f = REPULSE_K / d2
-            const fx = (dx / d) * f
-            const fy = (dy / d) * f
-            vA.vx += fx; vA.vy += fy
-            vB.vx -= fx; vB.vy -= fy
+          const gx = Math.floor(pA.x / GRID_CELL)
+          const gy = Math.floor(pA.y / GRID_CELL)
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              const cell = grid[(gx + dx) + ',' + (gy + dy)]
+              if (!cell) continue
+              for (let ci = 0; ci < cell.length; ci++) {
+                const j = cell[ci]
+                if (j <= i) continue
+                const idB = nodes[j].id()
+                if (idB === grabbedNodeId) continue
+                const pB = pos[idB]
+                const vB = vel.get(idB)!
+                let ddx = pA.x - pB.x
+                let ddy = pA.y - pB.y
+                let d2 = ddx * ddx + ddy * ddy
+                if (d2 < 1) { ddx = (Math.random() - 0.5) * 2; ddy = (Math.random() - 0.5) * 2; d2 = ddx * ddx + ddy * ddy }
+                const d = Math.sqrt(d2)
+                const f = REPULSE_K / d2
+                const fx = (ddx / d) * f
+                const fy = (ddy / d) * f
+                vA.vx += fx; vA.vy += fy
+                vB.vx -= fx; vB.vy -= fy
+              }
+            }
           }
         }
       }
 
-      // 2) Edge spring attraction (Hooke's law)
-      edgePairs.forEach(([sId, tId]) => {
+      // 2) Edge springs
+      for (let ei = 0; ei < edgePairs.length; ei++) {
+        const sId = edgePairs[ei][0], tId = edgePairs[ei][1]
         const pS = pos[sId], pT = pos[tId]
-        if (!pS || !pT) return
+        if (!pS || !pT) continue
         const vS = vel.get(sId), vT = vel.get(tId)
-        if (!vS || !vT) return
+        if (!vS || !vT) continue
         const dx = pT.x - pS.x
         const dy = pT.y - pS.y
         const d = Math.sqrt(dx * dx + dy * dy) || 1
@@ -504,38 +480,34 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         const fy = (dy / d) * disp * SPRING_K
         if (sId !== grabbedNodeId) { vS.vx += fx; vS.vy += fy }
         if (tId !== grabbedNodeId) { vT.vx -= fx; vT.vy -= fy }
-      })
+      }
 
-      // 3) Per-node: center gravity + turbulence + damping + clamp + apply
-      nodes.forEach((n: any) => {
+      // 3) Per-node forces + apply
+      for (let i = 0; i < nLen; i++) {
+        const n = nodes[i]
         const id = n.id()
-        if (id === grabbedNodeId) return
+        if (id === grabbedNodeId) continue
         const v = vel.get(id)!
         const p = pos[id]
 
-        // Center gravity
         v.vx += (centroid.x - p.x) * CENTER_GRAVITY
         v.vy += (centroid.y - p.y) * CENTER_GRAVITY
 
-        // Random turbulence
         if (Math.random() < NUDGE_CHANCE) {
           v.vx += (Math.random() - 0.5) * NUDGE_FORCE
           v.vy += (Math.random() - 0.5) * NUDGE_FORCE
         }
 
-        // Damping
         v.vx *= DAMPING
         v.vy *= DAMPING
 
-        // Speed limit
         const spd = Math.sqrt(v.vx * v.vx + v.vy * v.vy)
         if (spd > MAX_SPEED) { const s = MAX_SPEED / spd; v.vx *= s; v.vy *= s }
 
-        // Apply — direct position set (no batch)
         if (Math.abs(v.vx) > MIN_MOVE || Math.abs(v.vy) > MIN_MOVE) {
           n.position({ x: p.x + v.vx, y: p.y + v.vy })
         }
-      })
+      }
 
       animFrameRef.current = requestAnimationFrame(animLoop)
     }

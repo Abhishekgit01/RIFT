@@ -38,21 +38,22 @@ async def analyze(file: UploadFile = File(...)):
 
     df = parse_csv(text)
 
-    # Build profiles once, reuse everywhere
-    profiles = _build_profiles(df)
-
     rings, account_patterns, centrality = detect_all(df)
     result = compute_scores(df, rings, account_patterns, centrality)
     elapsed = round(time.time() - start, 1)
-    merchant_accounts = result.get("merchant_accounts", set())
+    merchant_accounts = result.get("merchant_accounts", {})
     output = build_output(df, result, elapsed, centrality, merchant_accounts=merchant_accounts)
 
-    # Generate AI risk narratives (reuse profiles)
+    # Reuse profiles from scoring (already computed inside compute_scores)
+    profiles = result.get("_profiles", _build_profiles(df))
+
+    # Generate AI risk narratives
     narratives = generate_all_narratives(result, profiles)
     output["narratives"] = narratives
 
     # Generate ring casefiles (explainability scorecards)
-    casefiles = build_casefiles(df, result, profiles, centrality)
+    payroll_stats = result.get("_payroll_stats", {})
+    casefiles = build_casefiles(df, result, profiles, centrality, payroll_stats=payroll_stats)
     output["casefiles"] = casefiles
 
     return output

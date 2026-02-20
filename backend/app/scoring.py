@@ -147,6 +147,8 @@ def compute_scores(
         "fraud_rings": ring_results,
         "merchant_accounts": merchant_accounts,
         "payroll_accounts": payroll_accounts,
+        "_profiles": profiles,
+        "_payroll_stats": payroll_stats,
     }
 
 

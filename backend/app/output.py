@@ -55,13 +55,18 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
         nodes.append(node)
 
     edges = []
-    for _, row in df.iterrows():
+    s_vals = df["sender_id"].values
+    r_vals = df["receiver_id"].values
+    a_vals = df["amount"].values
+    t_vals = df["transaction_id"].values
+    ts_vals = df["timestamp"].values
+    for i in range(len(s_vals)):
         edges.append({
-            "source": row["sender_id"],
-            "target": row["receiver_id"],
-            "amount": float(row["amount"]),
-            "transaction_id": row["transaction_id"],
-            "timestamp": row["timestamp"].strftime("%Y-%m-%d %H:%M:%S"),
+            "source": str(s_vals[i]),
+            "target": str(r_vals[i]),
+            "amount": float(a_vals[i]),
+            "transaction_id": str(t_vals[i]),
+            "timestamp": pd.Timestamp(ts_vals[i]).strftime("%Y-%m-%d %H:%M:%S"),
         })
 
     # Build spec-compliant suspicious_accounts — exact field order, exact float format

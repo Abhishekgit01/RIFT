@@ -56,6 +56,7 @@ def build_casefiles(
     result: dict,
     profiles: Dict[str, dict],
     centrality: Dict[str, dict],
+    payroll_stats: Dict[str, dict] = None,
 ) -> List[dict]:
     """Build one casefile per fraud ring.
 
@@ -141,7 +142,7 @@ def build_casefiles(
             prof = profiles.get(acc_id, {})
             fp_checks: List[str] = []
             is_merch = _is_merchant_like(prof, patterns)
-            is_pay = _is_payroll_like(prof, df, acc_id)
+            is_pay = _is_payroll_like(prof, df, acc_id, payroll_stats=payroll_stats)
             if is_merch:
                 fp_checks.append("Merchant-like traits detected but overridden by cycle involvement")
             else:

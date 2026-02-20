@@ -141,9 +141,11 @@ def _merge_overlapping_rings(rings: List[dict]) -> List[dict]:
     return merged
 
 
-def _detect_cycles(G: nx.DiGraph, max_cycles: int = 500) -> List[Set[str]]:
+def _detect_cycles(G: nx.DiGraph, max_cycles: int = 500, time_limit: float = 8.0) -> List[Set[str]]:
+    import time as _time
     cycles = []
     seen_sets = set()
+    deadline = _time.monotonic() + time_limit
     for cycle in nx.simple_cycles(G, length_bound=5):
         if len(cycle) < 3:
             continue
@@ -153,6 +155,9 @@ def _detect_cycles(G: nx.DiGraph, max_cycles: int = 500) -> List[Set[str]]:
             cycles.append(set(cycle))
             if len(cycles) >= max_cycles:
                 break
+        # Hard time cap so we never blow the 30-second budget
+        if _time.monotonic() > deadline:
+            break
     return cycles
 
 
@@ -223,11 +228,19 @@ def _detect_shell_networks(df: pd.DataFrame, G: nx.DiGraph) -> List[Set[str]]:
     max_chains = 100
     max_depth = 6
 
-    # Iterative DFS with explicit stack
-    for start_node in G.nodes():
+    # Only start DFS from nodes that are adjacent to shell accounts
+    # (much smaller set than all nodes on large graphs)
+    shell_adjacent = set()
+    for sa in shell_accounts:
+        shell_adjacent.add(sa)
+        if sa in G:
+            for pred in G.predecessors(sa):
+                shell_adjacent.add(pred)
+    start_candidates = shell_adjacent if shell_adjacent else set(G.nodes())
+
+    for start_node in start_candidates:
         if len(chains) >= max_chains:
             break
-        # Stack: (current_node, visited_set, chain_list)
         stack = [(start_node, frozenset([start_node]), [start_node])]
         while stack and len(chains) < max_chains:
             current, visited, chain = stack.pop()
@@ -257,8 +270,8 @@ def _compute_centrality(G: nx.DiGraph) -> Dict[str, dict]:
     if len(G.nodes()) == 0:
         return {}
     pr = nx.pagerank(G, alpha=0.85, max_iter=50, tol=1e-4)
-    # Sample-based betweenness for speed
-    k = min(len(G.nodes()), 100)
+    # Sample-based betweenness — cap k for speed on large graphs
+    k = min(len(G.nodes()), 50)
     bc = nx.betweenness_centrality(G, normalized=True, k=k)
     centrality = {}
     for node in G.nodes():
