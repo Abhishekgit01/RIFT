@@ -14,12 +14,12 @@ def _fmt_float(v: float) -> float:
     return round(float(v), 1)
 
 
-def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dict = None, merchant_accounts: set = None) -> dict:
+def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dict = None, merchant_accounts: dict = None) -> dict:
     """Build the final output matching the required JSON schema exactly."""
     if centrality is None:
         centrality = {}
     if merchant_accounts is None:
-        merchant_accounts = set()
+        merchant_accounts = {}
 
     all_accounts = set(df["sender_id"].unique()) | set(df["receiver_id"].unique())
 
@@ -38,6 +38,8 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
             "suspicious": acc in suspicious_ids,
             "merchant": acc in merchant_accounts,
         }
+        if acc in merchant_accounts:
+            node["merchant_reason"] = merchant_accounts[acc]
         if acc in account_lookup:
             info = account_lookup[acc]
             node["suspicion_score"] = info["suspicion_score"]

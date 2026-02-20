@@ -67,17 +67,34 @@ def compute_scores(
         raw_scores[acc] = score
 
     # Apply false-positive reductions
-    merchant_accounts: set = set()
+    merchant_accounts: dict = {}
     payroll_accounts: set = set()
     for acc, score in raw_scores.items():
         prof = profiles.get(acc, {})
         reduction = 0.0
         if _is_merchant_like(prof, account_patterns.get(acc, [])):
             reduction += 30.0
-            merchant_accounts.add(acc)
+            cp = prof.get('counterparty_count', 0)
+            span_d = round(prof.get('time_span_hours', 0) / 24, 1)
+            recv = prof.get('received_count', 0)
+            sent = prof.get('sent_count', 0)
+            merchant_accounts[acc] = (
+                f"High-volume merchant: {cp} counterparties, "
+                f"active {span_d} days, inbound/outbound ratio "
+                f"{recv}:{sent}, no cyclic patterns"
+            )
         if _is_payroll_like(prof, df, acc):
             reduction += 25.0
             payroll_accounts.add(acc)
+            if acc not in merchant_accounts:
+                sent_df = df[df['sender_id'] == acc]
+                avg = round(float(sent_df['amount'].mean()), 2)
+                merchant_accounts[acc] = (
+                    f"Payroll account: {len(sent_df)} regular disbursements, "
+                    f"avg ${avg:.2f}, consistent amounts & intervals"
+                )
+            else:
+                merchant_accounts[acc] += ' | Also matches payroll pattern'
         raw_scores[acc] = max(0.0, score - reduction)
 
     # Normalize to 0-100

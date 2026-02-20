@@ -1289,6 +1289,25 @@ header p {
   margin-top: 6px;
   font-style: italic;
 }
+.tt-merchant-info {
+  margin-top: 6px;
+}
+.tt-merchant-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #f0b232, #d4943a);
+  color: #1a1000;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+}
+.tt-merchant-reason {
+  color: rgba(240, 208, 128, 0.85);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
 
 /* Tooltip */
 .node-tooltip {

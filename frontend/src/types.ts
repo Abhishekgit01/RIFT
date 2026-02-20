@@ -23,6 +23,7 @@ export interface GraphNode {
   id: string
   suspicious: boolean
   merchant?: boolean
+  merchant_reason?: string
   suspicion_score?: number
   detected_patterns?: string[]
   ring_id?: string

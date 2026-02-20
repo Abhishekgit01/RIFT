@@ -141,14 +141,16 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       const size = isSusp
         ? Math.max(40, centralitySize * 1.1)
         : (isRingMember ? Math.max(28, centralitySize * 0.9)
-          : (isMerchant ? Math.max(30, centralitySize * 0.8) : Math.max(22, centralitySize * 0.65)))
+          : (isMerchant ? Math.max(36, centralitySize * 0.85) : Math.max(22, centralitySize * 0.65)))
 
       elements.push({
         data: {
           id: node.id,
-          label: isMerchant ? `Ⓜ ${node.id}` : node.id,
+          label: isMerchant ? 'M' : node.id,
+          accountLabel: node.id,
           suspicious: isSusp,
           isMerchant,
+          merchantReason: isMerchant ? (node.merchant_reason || 'Verified merchant') : '',
           ringId,
           isRingMember,
           score: node.suspicion_score || 0,
@@ -283,9 +285,14 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
             'shadow-offset-x': 0,
             'shadow-offset-y': 0,
             'label': 'data(label)',
-            'font-size': '8px',
-            'font-weight': 700,
-            'color': '#f0d080',
+            'text-valign': 'center',
+            'text-halign': 'center',
+            'text-margin-y': 0,
+            'font-size': '14px',
+            'font-weight': 900,
+            'color': '#1a1000',
+            'text-outline-color': '#f0b232',
+            'text-outline-width': 1.5,
           } as any,
         },
         {
@@ -640,7 +647,11 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
               <div className="tt-row"><span className="tt-label">Patterns:</span><span>{tooltip.node.detected_patterns?.join(', ')}</span></div>
             </>
           ) : tooltip.node.merchant ? (
-            <div className="tt-clean" style={{ color: '#f0b232' }}>Ⓜ Verified Merchant / Payroll — Not Flagged</div>
+            <div className="tt-merchant-info">
+              <div className="tt-merchant-badge">Ⓜ VERIFIED MERCHANT</div>
+              <div className="tt-merchant-reason">{tooltip.node.merchant_reason || 'Legitimate high-volume account'}</div>
+              <div className="tt-clean" style={{ color: '#f0b232', marginTop: '4px' }}>False-Positive Protected — Score Reduced</div>
+            </div>
           ) : (
             <div className="tt-clean">No suspicious activity detected</div>
           )}
