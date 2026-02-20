@@ -439,7 +439,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       // Ambient drift — runs every other frame for perf
       driftCounter++
       if (driftCounter % DRIFT_EVERY === 0) {
-        cy.batch(() => {
+        (cy as any).batch(() => {
           cy.nodes().forEach((n: any) => {
             if (n.id() === grabbedNodeId) return
             const v = nodeVelocities.get(n.id())
