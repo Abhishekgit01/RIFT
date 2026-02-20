@@ -13,7 +13,7 @@ This project is built for:
 ## Live Demo URL
 
 - App: `https://argusspider.vercel.app/`
-- Backend Health: `ADD_DEPLOYED_BACKEND_HEALTH_URL_HERE/health`
+- Backend Health: `https://rift-olive.vercel.app/health`
 
 ## Tech Stack
 
@@ -214,11 +214,7 @@ npm run build
 
 ## Submission Fields to Fill
 
-- Problem Statement selected: `Graph Theory / Financial Crime Detection Track`
-- GitHub Repo URL: `ADD_GITHUB_URL_HERE`
-- Hosted App URL: `ADD_DEPLOYED_URL_HERE`
+- Problem Statement selected: `MONEY MULING DETECTION CHALLENGE`
+- GitHub Repo URL: `https://github.com/Abhishekgit01/RIFT`
+- Hosted App URL: `https://argusspider.vercel.app/`
 - LinkedIn Demo URL: `ADD_LINKEDIN_POST_URL_HERE`
-
-## Team
-
-- Abhishek — Full-Stack Development, Detection Logic, Visualization
