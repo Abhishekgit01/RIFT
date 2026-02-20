@@ -12,7 +12,7 @@ This project is built for:
 
 ## Live Demo URL
 
-- App: `ADD_DEPLOYED_URL_HERE`
+- App: `https://argusspider.vercel.app/`
 - Backend Health: `ADD_DEPLOYED_BACKEND_HEALTH_URL_HERE/health`
 
 ## Tech Stack
