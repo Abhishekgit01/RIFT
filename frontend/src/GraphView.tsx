@@ -240,12 +240,12 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
             'shape': 'data(shape)' as any,
             'font-size': '7px',
             'font-weight': 700,
-            'color': '#d0e8ff',
+            'color': '#b0ffd0',
             'text-valign': 'bottom',
             'text-margin-y': 4,
             'border-width': 'data(borderWidth)',
             'border-color': 'data(borderColor)',
-            'text-outline-color': '#05090c',
+            'text-outline-color': '#030805',
             'text-outline-width': 2,
             'opacity': 1,
             'min-zoomed-font-size': 6,
@@ -331,7 +331,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
             'opacity': 1,
             'shadow-blur': 25,
             'shadow-opacity': 0.5,
-            'shadow-color': '#00f3ff',
+            'shadow-color': '#0fff8a',
             'shadow-offset-x': 0,
             'shadow-offset-y': 0,
           } as any
@@ -340,8 +340,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           selector: '.edge-highlighted', style: {
             'opacity': 1,
             'width': 3.5,
-            'line-color': '#00f3ff',
-            'target-arrow-color': '#00f3ff',
+            'line-color': '#0fff8a',
+            'target-arrow-color': '#0fff8a',
             'z-index': 100,
           } as any
         },
@@ -349,10 +349,10 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           selector: '.search-match', style: {
             'shadow-blur': 30,
             'shadow-opacity': 0.7,
-            'shadow-color': '#00ff9d',
+            'shadow-color': '#0fff8a',
             'shadow-offset-x': 0,
             'shadow-offset-y': 0,
-            'border-color': '#00ff9d',
+            'border-color': '#0fff8a',
             'border-width': 3,
             'z-index': 999,
             'label': 'data(label)',
@@ -455,7 +455,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     cy.nodes().forEach((node: any) => {
       if (node.hasClass('timeline-hidden')) return
       const p = node.position()
-      ctx.fillStyle = node.data('color') || '#4a8fbf'
+      ctx.fillStyle = node.data('color') || '#00cc78'
       ctx.beginPath()
       ctx.arc(p.x * scale + ox, p.y * scale + oy, Math.max(1.5, (node.data('size') || 10) * scale * 0.3), 0, Math.PI * 2)
       ctx.fill()
@@ -543,7 +543,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         <div className="gt-left">
           <div className="gt-stats">
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#c0c8d0' }} />{graphStats.nodes} nodes</span>
-            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#4a6a7f' }} />{graphStats.edges} edges</span>
+            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#1a5c3a' }} />{graphStats.edges} edges</span>
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#ff1f5a' }} />{graphStats.clusters} rings</span>
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#ffaa22' }} />{graphStats.suspicious} flagged</span>
           </div>

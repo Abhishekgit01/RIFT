@@ -189,7 +189,7 @@ function App() {
           {/* Hero */}
         <div className="landing-hero">
           <div className="landing-badge">Mule Network Forensics v2.0</div>
-          <h1>Argus Web</h1>
+          <h1>Argus Spider</h1>
           <p>
             The industry's most advanced tool for identifying complex money laundering networks
             and uncovering fraud rings hidden within massive datasets.
@@ -300,7 +300,7 @@ function App() {
   return (
     <div className="app">
       <header>
-        <h1>Argus Web</h1>
+        <h1>Argus Spider</h1>
         <p>Analysis Results</p>
       </header>
 
@@ -310,7 +310,7 @@ function App() {
           <div className="label">Accounts Analyzed</div>
         </div>
         <div className="summary-card">
-          <div className="value" style={{ color: '#e54545' }}>{result.summary.suspicious_accounts_flagged}</div>
+          <div className="value" style={{ color: '#ff3344' }}>{result.summary.suspicious_accounts_flagged}</div>
           <div className="label">Suspicious Accounts</div>
         </div>
         <div className="summary-card">

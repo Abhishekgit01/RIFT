@@ -1,4 +1,4 @@
-# Argus Web
+# Argus Spider
 
 A web-based application that processes transaction data and detects money muling networks through graph analysis and interactive visualization.
 

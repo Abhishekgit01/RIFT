@@ -1,5 +1,5 @@
 """
-Unit and integration tests for the Argus Web engine.
+Unit and integration tests for the Argus Spider engine.
 """
 import os
 import json
