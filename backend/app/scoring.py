@@ -67,13 +67,17 @@ def compute_scores(
         raw_scores[acc] = score
 
     # Apply false-positive reductions
+    merchant_accounts: set = set()
+    payroll_accounts: set = set()
     for acc, score in raw_scores.items():
         prof = profiles.get(acc, {})
         reduction = 0.0
         if _is_merchant_like(prof, account_patterns.get(acc, [])):
             reduction += 30.0
+            merchant_accounts.add(acc)
         if _is_payroll_like(prof, df, acc):
             reduction += 25.0
+            payroll_accounts.add(acc)
         raw_scores[acc] = max(0.0, score - reduction)
 
     # Normalize to 0-100
@@ -119,7 +123,12 @@ def compute_scores(
         })
     suspicious.sort(key=lambda x: (-x["suspicion_score"], x["account_id"]))
 
-    return {"suspicious_accounts": suspicious, "fraud_rings": ring_results}
+    return {
+        "suspicious_accounts": suspicious,
+        "fraud_rings": ring_results,
+        "merchant_accounts": merchant_accounts,
+        "payroll_accounts": payroll_accounts,
+    }
 
 
 def _build_profiles(df: pd.DataFrame) -> Dict[str, dict]:

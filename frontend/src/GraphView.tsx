@@ -127,24 +127,28 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
 
     visibleNodes.forEach(node => {
       const isSusp = node.suspicious
+      const isMerchant = node.merchant === true
       const ringId = node.ring_id || ''
       const isRingMember = ringMemberSet.has(node.id)
-      // All ring members get their ring's color; suspicious-only get red; clean nodes get steely blue
+      // All ring members get their ring's color; suspicious-only get red;
+      // merchants get gold; clean nodes get steely grey
       const color = (ringId && ringColorMap[ringId])
         ? ringColorMap[ringId]
-        : (isSusp ? '#ff1f5a' : '#c0c8d0')
+        : (isSusp ? '#ff1f5a' : (isMerchant ? '#f0b232' : '#c0c8d0'))
       const betweenness = node.betweenness || 0
       const centralitySize = 22 + (betweenness / maxBetweenness) * 38
       // All nodes are circles (ellipse) — size differentiates importance
       const size = isSusp
         ? Math.max(40, centralitySize * 1.1)
-        : (isRingMember ? Math.max(28, centralitySize * 0.9) : Math.max(22, centralitySize * 0.65))
+        : (isRingMember ? Math.max(28, centralitySize * 0.9)
+          : (isMerchant ? Math.max(30, centralitySize * 0.8) : Math.max(22, centralitySize * 0.65)))
 
       elements.push({
         data: {
           id: node.id,
-          label: node.id,
+          label: isMerchant ? `Ⓜ ${node.id}` : node.id,
           suspicious: isSusp,
+          isMerchant,
           ringId,
           isRingMember,
           score: node.suspicion_score || 0,
@@ -153,11 +157,11 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           color,
           size: Math.round(size),
           // Bold visible border for ring & suspicious nodes
-          borderWidth: isSusp ? 3.5 : (isRingMember ? 2.5 : 1.5),
-          borderColor: isSusp ? '#ffffff' : (isRingMember ? 'rgba(255,255,255,0.9)' : 'rgba(192, 200, 208, 0.45)'),
+          borderWidth: isSusp ? 3.5 : (isRingMember ? 2.5 : (isMerchant ? 2.5 : 1.5)),
+          borderColor: isSusp ? '#ffffff' : (isRingMember ? 'rgba(255,255,255,0.9)' : (isMerchant ? 'rgba(240, 178, 50, 0.7)' : 'rgba(192, 200, 208, 0.45)')),
           glowColor: color,
-          // All shapes are ellipse (circle) — matches screenshot
-          shape: 'ellipse',
+          // Merchants get diamond; rest are ellipse (circle)
+          shape: isMerchant ? 'diamond' : 'ellipse',
         },
       })
     })
@@ -268,6 +272,20 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
             'shadow-offset-y': 0,
             'label': 'data(label)',
             'font-size': '7px',
+          } as any,
+        },
+        {
+          selector: 'node[?isMerchant]',
+          style: {
+            'shadow-blur': 18,
+            'shadow-color': '#f0b232',
+            'shadow-opacity': 0.5,
+            'shadow-offset-x': 0,
+            'shadow-offset-y': 0,
+            'label': 'data(label)',
+            'font-size': '8px',
+            'font-weight': 700,
+            'color': '#f0d080',
           } as any,
         },
         {
@@ -559,7 +577,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         <div className="gt-search-results">
           {searchResults.slice(0, 8).map(id => (
             <button key={id} className="gt-search-result" onClick={() => focusNode(id)}>
-              <span className="gt-sr-dot" style={{ background: data.graph.nodes.find(n => n.id === id)?.suspicious ? '#ff1f5a' : '#c0c8d0' }} />
+              <span className="gt-sr-dot" style={{ background: data.graph.nodes.find(n => n.id === id)?.suspicious ? '#ff1f5a' : (data.graph.nodes.find(n => n.id === id)?.merchant ? '#f0b232' : '#c0c8d0') }} />
               {id}
               {data.graph.nodes.find(n => n.id === id)?.suspicious && <span className="gt-sr-badge">FLAGGED</span>}
             </button>
@@ -576,6 +594,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         <div className="gl-title">LEGEND</div>
         <div className="gl-items">
           <div className="gl-item"><div className="gl-dot" style={{ background: '#c0c8d0' }} /><span>Normal</span></div>
+          <div className="gl-item"><div className="gl-dot" style={{ background: '#f0b232', transform: 'rotate(45deg)', borderRadius: '3px' }} /><span>Merchant</span></div>
           <div className="gl-item"><div className="gl-dot gl-triangle" /><span>Suspicious</span></div>
           <div className="gl-item"><div className="gl-dot gl-diamond" style={{ background: '#d4943a' }} /><span>Ring Member</span></div>
           <div className="gl-item"><div className="gl-line gl-dash" /><span>Suspicious Flow</span></div>
@@ -620,6 +639,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
               <div className="tt-row"><span className="tt-label">Ring:</span><span>{tooltip.node.ring_id}</span></div>
               <div className="tt-row"><span className="tt-label">Patterns:</span><span>{tooltip.node.detected_patterns?.join(', ')}</span></div>
             </>
+          ) : tooltip.node.merchant ? (
+            <div className="tt-clean" style={{ color: '#f0b232' }}>Ⓜ Verified Merchant / Payroll — Not Flagged</div>
           ) : (
             <div className="tt-clean">No suspicious activity detected</div>
           )}

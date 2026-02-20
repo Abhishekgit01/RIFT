@@ -44,7 +44,8 @@ async def analyze(file: UploadFile = File(...)):
     rings, account_patterns, centrality = detect_all(df)
     result = compute_scores(df, rings, account_patterns, centrality)
     elapsed = round(time.time() - start, 1)
-    output = build_output(df, result, elapsed, centrality)
+    merchant_accounts = result.get("merchant_accounts", set())
+    output = build_output(df, result, elapsed, centrality, merchant_accounts=merchant_accounts)
 
     # Generate AI risk narratives (reuse profiles)
     narratives = generate_all_narratives(result, profiles)
