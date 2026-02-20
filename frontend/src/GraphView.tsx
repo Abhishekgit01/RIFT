@@ -406,18 +406,17 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     cy.on('pan zoom', () => updateMinimap(cy))
 
     // ── Ambient drift physics ──
-    // Give every node a tiny random velocity so the graph feels alive.
-    // Friction damps it to near-zero quickly; new nudges keep it drifting.
-    // Locked (grabbed) nodes are excluded. Cost: ~0.2 ms/frame for 500 nodes.
-    const FRICTION = 0.97          // velocity decay per frame
-    const NUDGE_CHANCE = 0.008     // probability a node gets a new nudge each frame
-    const NUDGE_FORCE = 0.15       // max nudge px/frame
-    const MAX_SPEED = 0.35         // clamp so nothing rockets off-screen
+    // Give every node a slow persistent drift so the graph feels alive.
+    // Frequent nudges + mild friction = continuous gentle floating.
+    const FRICTION = 0.992         // very light drag — movement persists
+    const NUDGE_CHANCE = 0.06      // 6% chance per node per tick — frequent nudges
+    const NUDGE_FORCE = 0.4        // nudge strength px/frame
+    const MAX_SPEED = 0.8          // max drift px/frame — visible but calm
     const nodeVelocities = new Map<string, { vx: number; vy: number }>()
     cy.nodes().forEach((n: any) => {
       nodeVelocities.set(n.id(), {
-        vx: (Math.random() - 0.5) * NUDGE_FORCE,
-        vy: (Math.random() - 0.5) * NUDGE_FORCE,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.6,
       })
     })
     let grabbedNodeId: string | null = null
@@ -427,8 +426,6 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     // Animate suspicious edges (marching ants) + pulsing ring glow + ambient drift
     let offset = 0
     let glowPhase = 0
-    let driftCounter = 0
-    const DRIFT_EVERY = 2 // apply drift every N frames to save CPU
     const animLoop = () => {
       offset = (offset + 0.6) % 12
       glowPhase = (glowPhase + 0.03) % (Math.PI * 2)
@@ -436,33 +433,30 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       cy.edges('[?suspicious]').style('line-dash-offset', -offset)
       cy.nodes('[?suspicious]').style('shadow-opacity', pulse)
 
-      // Ambient drift — runs every other frame for perf
-      driftCounter++
-      if (driftCounter % DRIFT_EVERY === 0) {
-        (cy as any).batch(() => {
-          cy.nodes().forEach((n: any) => {
-            if (n.id() === grabbedNodeId) return
-            const v = nodeVelocities.get(n.id())
-            if (!v) return
-            // Random micro-nudge
-            if (Math.random() < NUDGE_CHANCE) {
-              v.vx += (Math.random() - 0.5) * NUDGE_FORCE * 2
-              v.vy += (Math.random() - 0.5) * NUDGE_FORCE * 2
-            }
-            // Friction
-            v.vx *= FRICTION
-            v.vy *= FRICTION
-            // Clamp
-            const speed = Math.sqrt(v.vx * v.vx + v.vy * v.vy)
-            if (speed > MAX_SPEED) { const s = MAX_SPEED / speed; v.vx *= s; v.vy *= s }
-            // Apply only if meaningful
-            if (Math.abs(v.vx) > 0.01 || Math.abs(v.vy) > 0.01) {
-              const pos = n.position()
-              n.position({ x: pos.x + v.vx, y: pos.y + v.vy })
-            }
-          })
+      // Ambient drift — every frame for smooth floating
+      (cy as any).batch(() => {
+        cy.nodes().forEach((n: any) => {
+          if (n.id() === grabbedNodeId) return
+          const v = nodeVelocities.get(n.id())
+          if (!v) return
+          // Random micro-nudge — frequent enough to keep things alive
+          if (Math.random() < NUDGE_CHANCE) {
+            v.vx += (Math.random() - 0.5) * NUDGE_FORCE * 2
+            v.vy += (Math.random() - 0.5) * NUDGE_FORCE * 2
+          }
+          // Friction
+          v.vx *= FRICTION
+          v.vy *= FRICTION
+          // Clamp
+          const speed = Math.sqrt(v.vx * v.vx + v.vy * v.vy)
+          if (speed > MAX_SPEED) { const s = MAX_SPEED / speed; v.vx *= s; v.vy *= s }
+          // Apply
+          if (Math.abs(v.vx) > 0.005 || Math.abs(v.vy) > 0.005) {
+            const pos = n.position()
+            n.position({ x: pos.x + v.vx, y: pos.y + v.vy })
+          }
         })
-      }
+      })
 
       animFrameRef.current = requestAnimationFrame(animLoop)
     }
