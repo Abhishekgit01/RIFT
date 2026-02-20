@@ -352,26 +352,25 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     updateMinimap(cy)
     cy.on('pan zoom', () => updateMinimap(cy))
 
-    // ── Live force-directed physics ──
-    // Spatial-grid accelerated repulsion + edge springs + turbulence.
-    // For large graphs (>500 nodes): springs + gravity + turbulence only (O(N+E)).
-    // For small graphs (<500): full spatial-grid repulsion.
-    const DAMPING        = 0.90
-    const REPULSE_K      = 600
-    const SPRING_K       = nodeCount > 1000 ? 0.003 : 0.005
-    const SPRING_LEN     = nodeCount > 1000 ? 200 : 130
-    const CENTER_GRAVITY = nodeCount > 1000 ? 0.002 : 0.0005
-    const NUDGE_CHANCE   = nodeCount > 1000 ? 0.04 : 0.10
-    const NUDGE_FORCE    = nodeCount > 1000 ? 0.5 : 1.0
-    const MAX_SPEED      = nodeCount > 1000 ? 2.0 : 3.5
-    const MIN_MOVE       = 0.02
-    const GRID_CELL      = 200       // spatial hash cell size
+    // ── Live force-directed physics (gentle / slow drift) ──
+    // Strong repulsion keeps nodes apart; weak springs prevent infinite spread;
+    // heavy damping + low max-speed = calm, slow-motion feel.
+    const DAMPING        = 0.82                                        // heavy friction
+    const REPULSE_K      = nodeCount > 1000 ? 1800 : 2400             // strong push-apart
+    const SPRING_K       = nodeCount > 1000 ? 0.0008 : 0.0012         // very weak pull
+    const SPRING_LEN     = nodeCount > 1000 ? 280 : 200               // long rest length
+    const CENTER_GRAVITY = nodeCount > 1000 ? 0.0004 : 0.00015        // gentle centering
+    const NUDGE_CHANCE   = 0.03                                        // rare turbulence
+    const NUDGE_FORCE    = 0.25                                        // tiny nudges
+    const MAX_SPEED      = nodeCount > 1000 ? 0.8 : 1.2               // slow drift cap
+    const MIN_MOVE       = 0.01
+    const GRID_CELL      = 280       // spatial hash cell size (wider for longer repulsion range)
     const REPULSE_CUTOFF = 500       // skip pairwise repulsion above this
     const STYLE_FRAME    = nodeCount > 500 ? 6 : 3  // update styles every N frames
 
     const vel = new Map<string, { vx: number; vy: number }>()
     cy.nodes().forEach((n: any) => {
-      vel.set(n.id(), { vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2 })
+      vel.set(n.id(), { vx: (Math.random() - 0.5) * 0.4, vy: (Math.random() - 0.5) * 0.4 })
     })
 
     const edgePairs: [string, string][] = []
@@ -398,9 +397,9 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
 
     const animLoop = () => {
       frameCount++
-      offset = (offset + 0.6) % 12
-      glowPhase = (glowPhase + 0.03) % (Math.PI * 2)
-      const pulse = 0.55 + Math.sin(glowPhase) * 0.25
+      offset = (offset + 0.2) % 12
+      glowPhase = (glowPhase + 0.012) % (Math.PI * 2)
+      const pulse = 0.55 + Math.sin(glowPhase) * 0.15
       // Only update styles every Nth frame to save DOM writes
       if (frameCount % STYLE_FRAME === 0) {
         cy.edges('[?suspicious]').style('line-dash-offset', -offset)
