@@ -1,103 +1,159 @@
-# Argus Spider
+# Argus Spider — RIFT 2026 Money Muling Detection Engine
 
-A web-based application that processes transaction data and detects money muling networks through graph analysis and interactive visualization.
+Graph Theory / Financial Crime Detection Track submission for **RIFT 2026 Hackathon**.
+
+## Challenge Alignment
+
+This project is built for:
+- Money Muling Detection Challenge
+- Graph-based ring detection (cycles, smurfing, layered shell networks)
+- Web-based workflow with **CSV upload on homepage**
+- Interactive graph + ring summary table + downloadable JSON report
 
 ## Live Demo URL
 
-> _Deployed URL will be added after deployment._
+- App: `ADD_DEPLOYED_URL_HERE`
+- Backend Health: `ADD_DEPLOYED_BACKEND_HEALTH_URL_HERE/health`
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.14, FastAPI, pandas, NetworkX, Pydantic |
-| Frontend | React 18, TypeScript, Vite, Cytoscape.js |
-| Testing | pytest, FastAPI TestClient |
+- Frontend: React 18, TypeScript, Vite, Cytoscape.js
+- Backend: FastAPI, pandas, NetworkX, NumPy
+- Testing: pytest, FastAPI TestClient
+- Deployment target: Vercel/Render/Railway compatible
+
+## Input Specification (Implemented)
+
+CSV upload expects these required columns:
+- `transaction_id` (string)
+- `sender_id` (string)
+- `receiver_id` (string)
+- `amount` (float)
+- `timestamp` (`YYYY-MM-DD HH:MM:SS`)
+
+Validation performed server-side:
+- file extension check (`.csv`)
+- UTF-8 decoding check
+- required column presence
+- numeric amount coercion
+- strict timestamp format parsing
+
+## Required Outputs (Implemented)
+
+### 1) Interactive Graph Visualization
+- All accounts rendered as nodes
+- Directed edges as money flow (`sender -> receiver`)
+- Detected rings highlighted
+- Suspicious nodes visually distinct
+- Hover/click details for account-level context
+
+### 2) Downloadable JSON (Exact Required Shape)
+Download action outputs this schema:
+
+```json
+{
+  "suspicious_accounts": [
+    {
+      "account_id": "ACC_00123",
+      "suspicion_score": 87.5,
+      "detected_patterns": ["cycle_length_3", "high_velocity"],
+      "ring_id": "RING_001"
+    }
+  ],
+  "fraud_rings": [
+    {
+      "ring_id": "RING_001",
+      "member_accounts": ["ACC_00123"],
+      "pattern_type": "cycle",
+      "risk_score": 95.3
+    }
+  ],
+  "summary": {
+    "total_accounts_analyzed": 500,
+    "suspicious_accounts_flagged": 15,
+    "fraud_rings_detected": 4,
+    "processing_time_seconds": 2.3
+  }
+}
+```
+
+Format guarantees:
+- deterministic key/field ordering
+- `suspicious_accounts` sorted by `suspicion_score` desc
+- 1-decimal numeric formatting for score/time fields
+
+### 3) Fraud Ring Summary Table
+UI table includes:
+- Ring ID
+- Pattern Type
+- Member Count
+- Risk Score
+- Member Account IDs (comma-separated)
+
+## Detection Logic
+
+### Circular Fund Routing (Cycles)
+- Finds directed cycles length 3–5 using NetworkX (`simple_cycles`, bounded length)
+- Flags all accounts in each cycle as ring members
+
+### Smurfing (Fan-in / Fan-out)
+- Fan-in: `>=10` unique senders to one receiver
+- Fan-out: `>=10` unique receivers from one sender
+- Uses 72-hour rolling temporal windows
+
+### Layered Shell Networks
+- Detects chains of 3+ hops (4+ nodes)
+- Intermediate accounts must be low-activity shell accounts (2–3 transactions)
+
+### False Positive Control
+- Merchant-like profile reduction
+- Payroll-like profile reduction
+- Explicit handling to avoid naive high-volume false flags
+
+## Suspicion Scoring Methodology
+
+Base pattern weights:
+- `cycle_length_3`: +35
+- `cycle_length_4`: +30
+- `cycle_length_5`: +25
+- `fan_in`: +30
+- `fan_out`: +30
+- `layered_shell`: +25
+
+Additional signals:
+- high velocity bonus
+- small amount bonus
+- centrality bonuses (PageRank / betweenness)
+
+False-positive reductions:
+- merchant-like behavior: `-30`
+- payroll-like behavior: `-25`
+
+Normalization:
+- scaled to 0–100
+- suspicious threshold currently `>=25`
+
+## Performance Notes
+
+Target requirement: up to 10K transactions within 30s.
+Current optimizations include:
+- vectorized profile/stat aggregation
+- bounded cycle and shell enumeration
+- deterministic + lightweight post-processing
+- precomputed payroll stats to avoid repeated dataframe scans
 
 ## System Architecture
 
-```
-┌─────────────────────┐     POST /analyze      ┌──────────────────────────────┐
-│   React + Vite      │ ──────────────────────> │   FastAPI Backend             │
-│   (Cytoscape.js)    │ <────────────────────── │                              │
-│   - CSV Upload      │     JSON Response       │   ┌──────────┐              │
-│   - Graph View      │                         │   │  Parser   │ CSV → DF     │
-│   - Ring Table      │                         │   └────┬─────┘              │
-│   - JSON Download   │                         │        │                     │
-└─────────────────────┘                         │   ┌────▼─────┐              │
-                                                │   │ Detection │              │
-                                                │   │ - Cycles  │ NetworkX     │
-                                                │   │ - Smurf   │ DiGraph      │
-                                                │   │ - Shell   │              │
-                                                │   └────┬─────┘              │
-                                                │        │                     │
-                                                │   ┌────▼─────┐              │
-                                                │   │ Scoring   │ FP controls  │
-                                                │   └────┬─────┘              │
-                                                │        │                     │
-                                                │   ┌────▼─────┐              │
-                                                │   │  Output   │ JSON builder │
-                                                │   └──────────┘              │
-                                                └──────────────────────────────┘
-```
+1. Upload CSV in frontend
+2. POST to backend `/analyze`
+3. Parse + validate input
+4. Detect graph patterns (cycle/smurf/shell)
+5. Score accounts + assign rings
+6. Build output payload + graph structures
+7. Render graph/table/dashboard
+8. Download exact-format JSON report
 
-## Algorithm Approach
-
-### 1. Circular Fund Routing (Cycle Detection)
-
-- **Method**: Uses NetworkX `simple_cycles()` with `length_bound=5` to find all directed cycles of length 3-5.
-- **Complexity**: O(V + E) per cycle enumeration bounded by length. The Johnson's algorithm variant used internally is O((V+E)(C+1)) where C is the number of circuits.
-- **Rationale**: Cycles represent money flowing in loops (A -> B -> C -> A) to obscure origin.
-
-### 2. Smurfing Detection (Fan-in / Fan-out)
-
-- **Method**: Groups transactions by receiver (fan-in) or sender (fan-out) and checks if 10+ unique counterparties exist within any 72-hour rolling window.
-- **Complexity**: O(n log n) for sorting + O(n * w) for window scanning where w is window size.
-- **Rationale**: Many small deposits aggregated into one account then quickly dispersed indicates structuring to avoid reporting thresholds.
-
-### 3. Layered Shell Networks
-
-- **Method**: Identifies "shell accounts" (2-3 total transactions), then finds chains of 3+ hops through these intermediaries using DFS with depth limit 6.
-- **Complexity**: O(V * b^d) where b is branching factor and d is max depth (capped at 6).
-- **Rationale**: Money passing through thin-activity intermediaries suggests layering.
-
-## Suspicion Score Methodology
-
-### Base Scores (per pattern detected)
-
-| Pattern | Base Score |
-|---------|-----------|
-| `cycle_length_3` | 35.0 |
-| `cycle_length_4` | 30.0 |
-| `cycle_length_5` | 25.0 |
-| `fan_in` | 30.0 |
-| `fan_out` | 30.0 |
-| `layered_shell` | 25.0 |
-
-### Bonuses
-
-- **High velocity** (>20 txns/24h): +10.0
-- **Small amounts** (avg < $500): +5.0
-
-### False-Positive Reductions
-
-- **Merchant-like** (15+ counterparties, 7+ days active, receive >> send, no cycles): -30.0
-- **Payroll-like** (5+ sends, CV of amounts < 0.15, regular time gaps CV < 0.3): -25.0
-
-### Normalization
-
-Raw scores are normalized to 0-100 scale: `min(100, (raw / max_raw) * 100)`.
-
-### Threshold
-
-Accounts with normalized score < **25.0** are not flagged. This threshold balances recall (catching most suspicious accounts) with precision (not over-flagging).
-
-## Installation & Setup
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 18+ or Bun
+## Local Setup
 
 ### Backend
 
@@ -111,58 +167,58 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ```bash
 cd frontend
-bun install   # or npm install
-bun run dev   # or npm run dev
+npm install
+npm run dev
 ```
 
-The frontend runs on `http://localhost:5173` and proxies API calls to the backend on port 8000.
-
-### Running Tests
+### Tests
 
 ```bash
 cd backend
 pytest tests/test_engine.py -v
 ```
 
-## Usage Instructions
+### Build
 
-1. Open the application in your browser at `http://localhost:5173`.
-2. Click "Choose CSV File" and select a CSV file with columns: `transaction_id`, `sender_id`, `receiver_id`, `amount`, `timestamp`.
-3. Click "Analyze Transactions".
-4. View results:
-   - **Summary cards**: Total accounts, suspicious accounts, fraud rings, processing time.
-   - **Interactive graph**: Nodes are accounts, edges are transactions. Suspicious nodes are larger and colored by ring. Hover for details.
-   - **Fraud ring table**: Ring ID, pattern type, member count, risk score, member accounts.
-5. Click "Download JSON Report" to export the analysis results.
-6. Click "New Analysis" to start over.
-
-## CSV Input Format
-
-```csv
-transaction_id,sender_id,receiver_id,amount,timestamp
-TXN_001,ACC_001,ACC_002,500.00,2024-01-15 10:00:00
+```bash
+cd frontend
+npm run build
 ```
 
-| Column | Type | Format |
-|--------|------|--------|
-| transaction_id | String | Unique identifier |
-| sender_id | String | Sender account ID |
-| receiver_id | String | Receiver account ID |
-| amount | Float | Currency units |
-| timestamp | DateTime | YYYY-MM-DD HH:MM:SS |
+## Usage
+
+1. Open app home page
+2. Upload CSV
+3. Run analysis
+4. Inspect graph and ring table
+5. Download JSON report
 
 ## Known Limitations
 
-1. **Scale**: Optimized for up to 10K transactions. Larger datasets may exceed the 30-second target due to cycle enumeration.
-2. **Single-edge graph**: Multiple transactions between the same pair are collapsed into a single edge in cycle detection (but all are counted for scoring).
-3. **Static thresholds**: Fan-in/fan-out threshold of 10 and shell account threshold of 2-3 transactions are fixed; real-world tuning may be needed.
-4. **No ML component**: Detection relies entirely on heuristic graph patterns. A production system would benefit from supervised learning on labeled data.
-5. **Currency agnostic**: No currency conversion or amount normalization across different currencies.
-6. **No persistence**: Results are not stored between sessions.
+- Heuristic approach (no supervised ML model)
+- Thresholds may need dataset-specific tuning
+- Very dense graphs can still stress cycle search despite caps
+- API response includes additional UI fields; downloadable report is strict-format
 
-## Team Members
+## Submission Checklist (Mandatory)
 
-| Name | Role |
-|------|------|
-| Abhishek | Full-Stack Developer & Algorithm Design |
+- [ ] Live deployed web app URL (public, no auth)
+- [ ] CSV upload visible on homepage
+- [ ] Public GitHub repository
+- [ ] Public LinkedIn demo video (2–3 min)
+- [ ] LinkedIn tags/hashtags included:
+  - `#RIFTHackathon`
+  - `#MoneyMulingDetection`
+  - `#FinancialCrime`
+- [ ] README complete (this file)
 
+## Submission Fields to Fill
+
+- Problem Statement selected: `Graph Theory / Financial Crime Detection Track`
+- GitHub Repo URL: `ADD_GITHUB_URL_HERE`
+- Hosted App URL: `ADD_DEPLOYED_URL_HERE`
+- LinkedIn Demo URL: `ADD_LINKEDIN_POST_URL_HERE`
+
+## Team
+
+- Abhishek — Full-Stack Development, Detection Logic, Visualization

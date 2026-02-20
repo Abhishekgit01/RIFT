@@ -29,6 +29,7 @@ def compute_scores(
         centrality = {}
 
     profiles = _build_profiles(df)
+    payroll_stats = _build_payroll_stats(df)
 
     # Compute raw suspicion score per account
     raw_scores: Dict[str, float] = {}
@@ -83,14 +84,15 @@ def compute_scores(
                 f"active {span_d} days, inbound/outbound ratio "
                 f"{recv}:{sent}, no cyclic patterns"
             )
-        if _is_payroll_like(prof, df, acc):
+        if _is_payroll_like(prof, df, acc, payroll_stats=payroll_stats):
             reduction += 25.0
             payroll_accounts.add(acc)
             if acc not in merchant_accounts:
-                sent_df = df[df['sender_id'] == acc]
-                avg = round(float(sent_df['amount'].mean()), 2)
+                pstats = payroll_stats.get(acc, {})
+                tx_count = int(pstats.get("tx_count", 0))
+                avg = round(float(pstats.get("mean_amount", 0.0)), 2)
                 merchant_accounts[acc] = (
-                    f"Payroll account: {len(sent_df)} regular disbursements, "
+                    f"Payroll account: {tx_count} regular disbursements, "
                     f"avg ${avg:.2f}, consistent amounts & intervals"
                 )
             else:
@@ -225,6 +227,37 @@ def _build_profiles(df: pd.DataFrame) -> Dict[str, dict]:
     return profiles
 
 
+def _build_payroll_stats(df: pd.DataFrame) -> Dict[str, dict]:
+    """Precompute sender-side regularity metrics used by payroll detection."""
+    stats: Dict[str, dict] = {}
+    for sender, sent in df.groupby("sender_id"):
+        tx_count = int(len(sent))
+        if tx_count == 0:
+            continue
+
+        amounts = sent["amount"]
+        mean_amt = float(amounts.mean()) if tx_count > 0 else 0.0
+        amt_std = float(amounts.std()) if tx_count > 1 else 0.0
+        amount_cv = (amt_std / mean_amt) if mean_amt > 0 else np.inf
+
+        times = sent["timestamp"].sort_values()
+        if tx_count > 2:
+            gaps = times.diff().dropna().dt.total_seconds()
+            gap_mean = float(gaps.mean()) if len(gaps) > 0 else 0.0
+            gap_std = float(gaps.std()) if len(gaps) > 1 else 0.0
+            gap_cv = (gap_std / gap_mean) if gap_mean > 0 else np.inf
+        else:
+            gap_cv = np.inf
+
+        stats[sender] = {
+            "tx_count": tx_count,
+            "mean_amount": mean_amt,
+            "amount_cv": amount_cv,
+            "gap_cv": gap_cv,
+        }
+    return stats
+
+
 def _is_merchant_like(prof: dict, patterns: List[str], profiles: dict = None) -> bool:
     """Detect legitimate high-volume merchants / payroll accounts.
 
@@ -261,21 +294,21 @@ def _is_merchant_like(prof: dict, patterns: List[str], profiles: dict = None) ->
     )
 
 
-def _is_payroll_like(prof: dict, df: pd.DataFrame, acc: str) -> bool:
+def _is_payroll_like(prof: dict, df: pd.DataFrame, acc: str, payroll_stats: Dict[str, dict] = None) -> bool:
     if not prof:
         return False
-    sent = df[df["sender_id"] == acc]
-    if len(sent) < 3:
+
+    if payroll_stats is not None:
+        pstats = payroll_stats.get(acc)
+    else:
+        pstats = _build_payroll_stats(df).get(acc)
+
+    if not pstats:
         return False
-    mean_amt = sent["amount"].mean()
-    if mean_amt <= 0:
+    if pstats.get("tx_count", 0) < 3:
         return False
-    cv = sent["amount"].std() / mean_amt
-    if cv > 0.15:
+    if pstats.get("mean_amount", 0.0) <= 0:
         return False
-    times = sent["timestamp"].sort_values()
-    if len(times) < 3:
+    if pstats.get("amount_cv", np.inf) > 0.15:
         return False
-    gaps = times.diff().dropna().dt.total_seconds()
-    gap_cv = gaps.std() / gaps.mean() if gaps.mean() > 0 else 1
-    return gap_cv < 0.3
+    return pstats.get("gap_cv", np.inf) < 0.3

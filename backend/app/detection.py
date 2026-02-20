@@ -240,7 +240,7 @@ def _detect_shell_networks(df: pd.DataFrame, G: nx.DiGraph) -> List[Set[str]]:
                 new_visited = visited | {neighbor}
                 if len(new_chain) >= 4:
                     intermediates = new_chain[1:-1]
-                    if any(a in shell_accounts for a in intermediates):
+                    if intermediates and all(a in shell_accounts for a in intermediates):
                         fs = frozenset(new_chain)
                         if fs not in seen:
                             seen.add(fs)

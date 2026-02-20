@@ -66,7 +66,11 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
 
     # Build spec-compliant suspicious_accounts — exact field order, exact float format
     spec_suspicious = []
-    for a in result["suspicious_accounts"]:
+    ordered_suspicious = sorted(
+        result["suspicious_accounts"],
+        key=lambda a: (-float(a["suspicion_score"]), a["account_id"]),
+    )
+    for a in ordered_suspicious:
         spec_suspicious.append({
             "account_id": a["account_id"],
             "suspicion_score": _fmt_float(a["suspicion_score"]),
@@ -76,7 +80,11 @@ def build_output(df: pd.DataFrame, result: dict, elapsed: float, centrality: dic
 
     # Build spec-compliant fraud_rings — exact field order, exact float format
     spec_fraud_rings = []
-    for r in result["fraud_rings"]:
+    ordered_rings = sorted(
+        result["fraud_rings"],
+        key=lambda r: (r["ring_id"], tuple(sorted(r["member_accounts"]))),
+    )
+    for r in ordered_rings:
         spec_fraud_rings.append({
             "ring_id": r["ring_id"],
             "member_accounts": sorted(r["member_accounts"]),

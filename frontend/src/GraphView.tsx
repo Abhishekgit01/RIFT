@@ -405,20 +405,34 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     updateMinimap(cy)
     cy.on('pan zoom', () => updateMinimap(cy))
 
-    // ── Ambient drift physics ──
-    // Give every node a slow persistent drift so the graph feels alive.
-    // Frequent nudges + mild friction = continuous gentle floating.
-    const FRICTION = 0.992         // very light drag — movement persists
-    const NUDGE_CHANCE = 0.06      // 6% chance per node per tick — frequent nudges
-    const NUDGE_FORCE = 0.4        // nudge strength px/frame
-    const MAX_SPEED = 0.8          // max drift px/frame — visible but calm
+    // ── Ambient physics ──
+    // Lightweight force simulation: repulsion + random nudge + mild center pull.
+    const DAMPING = 0.995          // retain momentum so movement feels physical
+    const NUDGE_CHANCE = 0.08      // small random turbulence to keep graph alive
+    const NUDGE_FORCE = 0.45
+    const MAX_SPEED = 1.6
+    const REPULSION_RADIUS = 130
+    const REPULSION_RADIUS2 = REPULSION_RADIUS * REPULSION_RADIUS
+    const REPULSION_STRENGTH = 0.055
+    const CENTER_PULL = 0.0009
+    const MAX_FULL_PAIRWISE_NODES = 220
     const nodeVelocities = new Map<string, { vx: number; vy: number }>()
     cy.nodes().forEach((n: any) => {
       nodeVelocities.set(n.id(), {
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
+        vx: (Math.random() - 0.5) * 1.1,
+        vy: (Math.random() - 0.5) * 1.1,
       })
     })
+
+    const initialCenter = cy.nodes().reduce((acc: any, n: any) => {
+      const p = n.position()
+      return { x: acc.x + p.x, y: acc.y + p.y }
+    }, { x: 0, y: 0 })
+    const centerTarget = {
+      x: cy.nodes().length ? initialCenter.x / cy.nodes().length : 0,
+      y: cy.nodes().length ? initialCenter.y / cy.nodes().length : 0,
+    }
+
     let grabbedNodeId: string | null = null
     cy.on('grab', 'node', (e: any) => { grabbedNodeId = e.target.id() })
     cy.on('free', 'node', () => { grabbedNodeId = null })
@@ -433,26 +447,72 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       cy.edges('[?suspicious]').style('line-dash-offset', -offset)
       cy.nodes('[?suspicious]').style('shadow-opacity', pulse)
 
-      // Ambient drift — every frame for smooth floating
+      // Ambient physics — every frame
       (cy as any).batch(() => {
-        cy.nodes().forEach((n: any) => {
+        const activeNodes = cy.nodes().filter((n: any) => !n.hasClass('timeline-hidden')).toArray()
+
+        // Pairwise repulsion on smaller graphs (keeps nodes from sticking together)
+        if (activeNodes.length <= MAX_FULL_PAIRWISE_NODES) {
+          for (let i = 0; i < activeNodes.length; i++) {
+            const a = activeNodes[i]
+            if (a.id() === grabbedNodeId) continue
+            const pa = a.position()
+            const va = nodeVelocities.get(a.id())
+            if (!va) continue
+
+            for (let j = i + 1; j < activeNodes.length; j++) {
+              const b = activeNodes[j]
+              if (b.id() === grabbedNodeId) continue
+              const pb = b.position()
+              const vb = nodeVelocities.get(b.id())
+              if (!vb) continue
+
+              const dx = pa.x - pb.x
+              const dy = pa.y - pb.y
+              const dist2 = dx * dx + dy * dy
+              if (dist2 <= 0.0001 || dist2 > REPULSION_RADIUS2) continue
+
+              const dist = Math.sqrt(dist2)
+              const nx = dx / dist
+              const ny = dy / dist
+              const push = ((REPULSION_RADIUS - dist) / REPULSION_RADIUS) * REPULSION_STRENGTH
+
+              va.vx += nx * push
+              va.vy += ny * push
+              vb.vx -= nx * push
+              vb.vy -= ny * push
+            }
+          }
+        }
+
+        activeNodes.forEach((n: any) => {
           if (n.id() === grabbedNodeId) return
           const v = nodeVelocities.get(n.id())
           if (!v) return
-          // Random micro-nudge — frequent enough to keep things alive
+
+          const pos = n.position()
+
+          // Random micro turbulence
           if (Math.random() < NUDGE_CHANCE) {
-            v.vx += (Math.random() - 0.5) * NUDGE_FORCE * 2
-            v.vy += (Math.random() - 0.5) * NUDGE_FORCE * 2
+            v.vx += (Math.random() - 0.5) * NUDGE_FORCE
+            v.vy += (Math.random() - 0.5) * NUDGE_FORCE
           }
-          // Friction
-          v.vx *= FRICTION
-          v.vy *= FRICTION
-          // Clamp
+
+          // Soft spring to keep cluster in frame while still free-floating
+          v.vx += (centerTarget.x - pos.x) * CENTER_PULL
+          v.vy += (centerTarget.y - pos.y) * CENTER_PULL
+
+          // Damping + clamp
+          v.vx *= DAMPING
+          v.vy *= DAMPING
           const speed = Math.sqrt(v.vx * v.vx + v.vy * v.vy)
-          if (speed > MAX_SPEED) { const s = MAX_SPEED / speed; v.vx *= s; v.vy *= s }
-          // Apply
-          if (Math.abs(v.vx) > 0.005 || Math.abs(v.vy) > 0.005) {
-            const pos = n.position()
+          if (speed > MAX_SPEED) {
+            const s = MAX_SPEED / speed
+            v.vx *= s
+            v.vy *= s
+          }
+
+          if (Math.abs(v.vx) > 0.002 || Math.abs(v.vy) > 0.002) {
             n.position({ x: pos.x + v.vx, y: pos.y + v.vy })
           }
         })
