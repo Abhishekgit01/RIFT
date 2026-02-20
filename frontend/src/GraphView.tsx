@@ -132,7 +132,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       // All ring members get their ring's color; suspicious-only get red; clean nodes get steely blue
       const color = (ringId && ringColorMap[ringId])
         ? ringColorMap[ringId]
-        : (isSusp ? '#ff1f5a' : '#4de1ff')
+        : (isSusp ? '#ff1f5a' : '#c0c8d0')
       const betweenness = node.betweenness || 0
       const centralitySize = 22 + (betweenness / maxBetweenness) * 38
       // All nodes are circles (ellipse) — size differentiates importance
@@ -154,7 +154,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           size: Math.round(size),
           // Bold visible border for ring & suspicious nodes
           borderWidth: isSusp ? 3.5 : (isRingMember ? 2.5 : 1.5),
-          borderColor: isSusp ? '#ffffff' : (isRingMember ? 'rgba(255,255,255,0.9)' : 'rgba(77, 225, 255, 0.45)'),
+          borderColor: isSusp ? '#ffffff' : (isRingMember ? 'rgba(255,255,255,0.9)' : 'rgba(192, 200, 208, 0.45)'),
           glowColor: color,
           // All shapes are ellipse (circle) — matches screenshot
           shape: 'ellipse',
@@ -181,8 +181,8 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
           suspicious: bothRing,
           eitherSusp,
           width: Math.round(width * 10) / 10,
-          color: bothRing ? 'rgba(255, 31, 90, 0.75)' : (eitherSusp ? 'rgba(255, 170, 34, 0.55)' : 'rgba(77, 225, 255, 0.22)'),
-          arrowColor: bothRing ? '#ff1f5a' : (eitherSusp ? '#ffaa22' : 'rgba(77, 225, 255, 0.5)'),          
+          color: bothRing ? 'rgba(255, 31, 90, 0.75)' : (eitherSusp ? 'rgba(255, 170, 34, 0.55)' : 'rgba(192, 200, 208, 0.18)'),
+          arrowColor: bothRing ? '#ff1f5a' : (eitherSusp ? '#ffaa22' : 'rgba(192, 200, 208, 0.45)'),          
         },
       })
     })
@@ -517,7 +517,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       <div className="graph-toolbar">
         <div className="gt-left">
           <div className="gt-stats">
-            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#4de1ff' }} />{graphStats.nodes} nodes</span>
+            <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#c0c8d0' }} />{graphStats.nodes} nodes</span>
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#4a6a7f' }} />{graphStats.edges} edges</span>
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#ff1f5a' }} />{graphStats.clusters} rings</span>
             <span className="gt-stat-item"><span className="gt-stat-dot" style={{ background: '#ffaa22' }} />{graphStats.suspicious} flagged</span>
@@ -559,7 +559,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
         <div className="gt-search-results">
           {searchResults.slice(0, 8).map(id => (
             <button key={id} className="gt-search-result" onClick={() => focusNode(id)}>
-              <span className="gt-sr-dot" style={{ background: data.graph.nodes.find(n => n.id === id)?.suspicious ? '#ff1f5a' : '#4de1ff' }} />
+              <span className="gt-sr-dot" style={{ background: data.graph.nodes.find(n => n.id === id)?.suspicious ? '#ff1f5a' : '#c0c8d0' }} />
               {id}
               {data.graph.nodes.find(n => n.id === id)?.suspicious && <span className="gt-sr-badge">FLAGGED</span>}
             </button>
@@ -575,7 +575,7 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
       <div className="graph-legend">
         <div className="gl-title">LEGEND</div>
         <div className="gl-items">
-          <div className="gl-item"><div className="gl-dot" style={{ background: '#4de1ff' }} /><span>Normal</span></div>
+          <div className="gl-item"><div className="gl-dot" style={{ background: '#c0c8d0' }} /><span>Normal</span></div>
           <div className="gl-item"><div className="gl-dot gl-triangle" /><span>Suspicious</span></div>
           <div className="gl-item"><div className="gl-dot gl-diamond" style={{ background: '#d4943a' }} /><span>Ring Member</span></div>
           <div className="gl-item"><div className="gl-line gl-dash" /><span>Suspicious Flow</span></div>
