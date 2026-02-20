@@ -72,7 +72,7 @@ def compute_scores(
     for acc, score in raw_scores.items():
         prof = profiles.get(acc, {})
         reduction = 0.0
-        if _is_merchant_like(prof, account_patterns.get(acc, [])):
+        if _is_merchant_like(prof, account_patterns.get(acc, []), profiles):
             reduction += 30.0
             cp = prof.get('counterparty_count', 0)
             span_d = round(prof.get('time_span_hours', 0) / 24, 1)
@@ -225,14 +225,38 @@ def _build_profiles(df: pd.DataFrame) -> Dict[str, dict]:
     return profiles
 
 
-def _is_merchant_like(prof: dict, patterns: List[str]) -> bool:
+def _is_merchant_like(prof: dict, patterns: List[str], profiles: dict = None) -> bool:
+    """Detect legitimate high-volume merchants / payroll accounts.
+
+    Uses adaptive thresholds so the detection works on both tiny demo CSVs
+    and production 10K-transaction datasets:
+      - counterparty_count  >= max(3, top-20 percentile of all accounts)
+      - time_span_hours     >= max(2, median span across all accounts)
+      - received_count      >  sent_count * 2   (inbound-heavy)
+      - no cyclic transaction patterns
+    """
     if not prof:
         return False
     has_cycle = any("cycle" in p for p in patterns)
+    if has_cycle:
+        return False
+
+    # Adaptive thresholds based on dataset statistics
+    if profiles and len(profiles) > 0:
+        all_cp = sorted(p.get("counterparty_count", 0) for p in profiles.values())
+        all_span = sorted(p.get("time_span_hours", 0) for p in profiles.values())
+        cp_p80 = all_cp[int(len(all_cp) * 0.80)] if all_cp else 15
+        span_median = all_span[len(all_span) // 2] if all_span else 168
+        cp_thresh = max(3, cp_p80)
+        span_thresh = max(2, span_median)
+    else:
+        cp_thresh = 15
+        span_thresh = 168
+
     return (
-        prof.get("counterparty_count", 0) >= 15
-        and prof.get("time_span_hours", 0) >= 168
-        and prof.get("received_count", 0) > prof.get("sent_count", 0) * 3
+        prof.get("counterparty_count", 0) >= cp_thresh
+        and prof.get("time_span_hours", 0) >= span_thresh
+        and prof.get("received_count", 0) > prof.get("sent_count", 0) * 2
         and not has_cycle
     )
 
@@ -241,7 +265,7 @@ def _is_payroll_like(prof: dict, df: pd.DataFrame, acc: str) -> bool:
     if not prof:
         return False
     sent = df[df["sender_id"] == acc]
-    if len(sent) < 5:
+    if len(sent) < 3:
         return False
     mean_amt = sent["amount"].mean()
     if mean_amt <= 0:
