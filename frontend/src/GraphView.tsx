@@ -405,117 +405,136 @@ export default function GraphView({ data, selectedRingId, onSelectAccount }: Pro
     updateMinimap(cy)
     cy.on('pan zoom', () => updateMinimap(cy))
 
-    // ── Ambient physics ──
-    // Lightweight force simulation: repulsion + random nudge + mild center pull.
-    const DAMPING = 0.995          // retain momentum so movement feels physical
-    const NUDGE_CHANCE = 0.08      // small random turbulence to keep graph alive
-    const NUDGE_FORCE = 0.45
-    const MAX_SPEED = 1.6
-    const REPULSION_RADIUS = 130
-    const REPULSION_RADIUS2 = REPULSION_RADIUS * REPULSION_RADIUS
-    const REPULSION_STRENGTH = 0.055
-    const CENTER_PULL = 0.0009
-    const MAX_FULL_PAIRWISE_NODES = 220
-    const nodeVelocities = new Map<string, { vx: number; vy: number }>()
+    // ── Live force-directed physics ──
+    // Real physics: repulsion between all node pairs, edge spring attraction,
+    // random turbulence, center gravity, damping. NO cy.batch() — direct updates.
+    const DAMPING        = 0.92
+    const REPULSE_K      = 800        // Coulomb-like repulsion constant
+    const SPRING_K       = 0.006      // edge spring stiffness
+    const SPRING_LEN     = 120        // rest length for edge springs
+    const CENTER_GRAVITY = 0.0004     // pull toward center so graph doesn't fly off
+    const NUDGE_CHANCE   = 0.12       // 12% random perturbation per node/frame
+    const NUDGE_FORCE    = 1.2
+    const MAX_SPEED      = 4.0
+    const MIN_MOVE       = 0.01
+    const PAIRWISE_CAP   = 300        // full O(n²) repulsion up to this node count
+
+    // Velocity store (keyed by id)
+    const vel = new Map<string, { vx: number; vy: number }>()
     cy.nodes().forEach((n: any) => {
-      nodeVelocities.set(n.id(), {
-        vx: (Math.random() - 0.5) * 1.1,
-        vy: (Math.random() - 0.5) * 1.1,
-      })
+      vel.set(n.id(), { vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2 })
     })
 
-    const initialCenter = cy.nodes().reduce((acc: any, n: any) => {
-      const p = n.position()
-      return { x: acc.x + p.x, y: acc.y + p.y }
-    }, { x: 0, y: 0 })
-    const centerTarget = {
-      x: cy.nodes().length ? initialCenter.x / cy.nodes().length : 0,
-      y: cy.nodes().length ? initialCenter.y / cy.nodes().length : 0,
-    }
+    // Build neighbour map from cy edges for spring forces
+    const edgePairs: [string, string][] = []
+    cy.edges().forEach((e: any) => {
+      edgePairs.push([e.source().id(), e.target().id()])
+    })
+
+    // Compute initial centroid for center gravity target
+    let cx = 0, cy2 = 0
+    const allN = cy.nodes().toArray()
+    allN.forEach((n: any) => { const p = n.position(); cx += p.x; cy2 += p.y })
+    const centroid = { x: allN.length ? cx / allN.length : 0, y: allN.length ? cy2 / allN.length : 0 }
 
     let grabbedNodeId: string | null = null
     cy.on('grab', 'node', (e: any) => { grabbedNodeId = e.target.id() })
-    cy.on('free', 'node', () => { grabbedNodeId = null })
+    cy.on('free', 'node', (e: any) => {
+      // zero-out velocity on release so node doesn't shoot off
+      const v = vel.get(e.target.id())
+      if (v) { v.vx = 0; v.vy = 0 }
+      grabbedNodeId = null
+    })
 
-    // Animate suspicious edges (marching ants) + pulsing ring glow + ambient drift
+    // Animate suspicious edges (marching ants) + pulsing ring glow
     let offset = 0
     let glowPhase = 0
+
     const animLoop = () => {
       offset = (offset + 0.6) % 12
       glowPhase = (glowPhase + 0.03) % (Math.PI * 2)
-      const pulse = 0.55 + Math.sin(glowPhase) * 0.25 // 0.30 – 0.80
+      const pulse = 0.55 + Math.sin(glowPhase) * 0.25
       cy.edges('[?suspicious]').style('line-dash-offset', -offset)
       cy.nodes('[?suspicious]').style('shadow-opacity', pulse)
 
-      // Ambient physics — every frame
-      (cy as any).batch(() => {
-        const activeNodes = cy.nodes().filter((n: any) => !n.hasClass('timeline-hidden')).toArray()
+      // --- Physics tick ---
+      const nodes = cy.nodes().filter((n: any) => !n.hasClass('timeline-hidden')).toArray()
 
-        // Pairwise repulsion on smaller graphs (keeps nodes from sticking together)
-        if (activeNodes.length <= MAX_FULL_PAIRWISE_NODES) {
-          for (let i = 0; i < activeNodes.length; i++) {
-            const a = activeNodes[i]
-            if (a.id() === grabbedNodeId) continue
-            const pa = a.position()
-            const va = nodeVelocities.get(a.id())
-            if (!va) continue
+      // Snapshot positions (read once per frame)
+      const pos: Record<string, { x: number; y: number }> = {}
+      nodes.forEach((n: any) => { const p = n.position(); pos[n.id()] = { x: p.x, y: p.y } })
 
-            for (let j = i + 1; j < activeNodes.length; j++) {
-              const b = activeNodes[j]
-              if (b.id() === grabbedNodeId) continue
-              const pb = b.position()
-              const vb = nodeVelocities.get(b.id())
-              if (!vb) continue
-
-              const dx = pa.x - pb.x
-              const dy = pa.y - pb.y
-              const dist2 = dx * dx + dy * dy
-              if (dist2 <= 0.0001 || dist2 > REPULSION_RADIUS2) continue
-
-              const dist = Math.sqrt(dist2)
-              const nx = dx / dist
-              const ny = dy / dist
-              const push = ((REPULSION_RADIUS - dist) / REPULSION_RADIUS) * REPULSION_STRENGTH
-
-              va.vx += nx * push
-              va.vy += ny * push
-              vb.vx -= nx * push
-              vb.vy -= ny * push
-            }
+      // 1) Pairwise repulsion (Coulomb-like: F = K / d²)
+      if (nodes.length <= PAIRWISE_CAP) {
+        for (let i = 0; i < nodes.length; i++) {
+          const idA = nodes[i].id()
+          if (idA === grabbedNodeId) continue
+          const pA = pos[idA]
+          const vA = vel.get(idA)!
+          for (let j = i + 1; j < nodes.length; j++) {
+            const idB = nodes[j].id()
+            if (idB === grabbedNodeId) continue
+            const pB = pos[idB]
+            const vB = vel.get(idB)!
+            let dx = pA.x - pB.x
+            let dy = pA.y - pB.y
+            let d2 = dx * dx + dy * dy
+            if (d2 < 1) { dx = (Math.random() - 0.5) * 2; dy = (Math.random() - 0.5) * 2; d2 = dx * dx + dy * dy }
+            const d = Math.sqrt(d2)
+            const f = REPULSE_K / d2
+            const fx = (dx / d) * f
+            const fy = (dy / d) * f
+            vA.vx += fx; vA.vy += fy
+            vB.vx -= fx; vB.vy -= fy
           }
         }
+      }
 
-        activeNodes.forEach((n: any) => {
-          if (n.id() === grabbedNodeId) return
-          const v = nodeVelocities.get(n.id())
-          if (!v) return
+      // 2) Edge spring attraction (Hooke's law)
+      edgePairs.forEach(([sId, tId]) => {
+        const pS = pos[sId], pT = pos[tId]
+        if (!pS || !pT) return
+        const vS = vel.get(sId), vT = vel.get(tId)
+        if (!vS || !vT) return
+        const dx = pT.x - pS.x
+        const dy = pT.y - pS.y
+        const d = Math.sqrt(dx * dx + dy * dy) || 1
+        const disp = d - SPRING_LEN
+        const fx = (dx / d) * disp * SPRING_K
+        const fy = (dy / d) * disp * SPRING_K
+        if (sId !== grabbedNodeId) { vS.vx += fx; vS.vy += fy }
+        if (tId !== grabbedNodeId) { vT.vx -= fx; vT.vy -= fy }
+      })
 
-          const pos = n.position()
+      // 3) Per-node: center gravity + turbulence + damping + clamp + apply
+      nodes.forEach((n: any) => {
+        const id = n.id()
+        if (id === grabbedNodeId) return
+        const v = vel.get(id)!
+        const p = pos[id]
 
-          // Random micro turbulence
-          if (Math.random() < NUDGE_CHANCE) {
-            v.vx += (Math.random() - 0.5) * NUDGE_FORCE
-            v.vy += (Math.random() - 0.5) * NUDGE_FORCE
-          }
+        // Center gravity
+        v.vx += (centroid.x - p.x) * CENTER_GRAVITY
+        v.vy += (centroid.y - p.y) * CENTER_GRAVITY
 
-          // Soft spring to keep cluster in frame while still free-floating
-          v.vx += (centerTarget.x - pos.x) * CENTER_PULL
-          v.vy += (centerTarget.y - pos.y) * CENTER_PULL
+        // Random turbulence
+        if (Math.random() < NUDGE_CHANCE) {
+          v.vx += (Math.random() - 0.5) * NUDGE_FORCE
+          v.vy += (Math.random() - 0.5) * NUDGE_FORCE
+        }
 
-          // Damping + clamp
-          v.vx *= DAMPING
-          v.vy *= DAMPING
-          const speed = Math.sqrt(v.vx * v.vx + v.vy * v.vy)
-          if (speed > MAX_SPEED) {
-            const s = MAX_SPEED / speed
-            v.vx *= s
-            v.vy *= s
-          }
+        // Damping
+        v.vx *= DAMPING
+        v.vy *= DAMPING
 
-          if (Math.abs(v.vx) > 0.002 || Math.abs(v.vy) > 0.002) {
-            n.position({ x: pos.x + v.vx, y: pos.y + v.vy })
-          }
-        })
+        // Speed limit
+        const spd = Math.sqrt(v.vx * v.vx + v.vy * v.vy)
+        if (spd > MAX_SPEED) { const s = MAX_SPEED / spd; v.vx *= s; v.vy *= s }
+
+        // Apply — direct position set (no batch)
+        if (Math.abs(v.vx) > MIN_MOVE || Math.abs(v.vy) > MIN_MOVE) {
+          n.position({ x: p.x + v.vx, y: p.y + v.vy })
+        }
       })
 
       animFrameRef.current = requestAnimationFrame(animLoop)
