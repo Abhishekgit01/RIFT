@@ -1,5 +1,5 @@
 """
-Unit and integration tests for the Financial Forensics Engine.
+Unit and integration tests for the Argus Web engine.
 """
 import os
 import json

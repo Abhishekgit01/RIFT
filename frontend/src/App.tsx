@@ -189,7 +189,7 @@ function App() {
           {/* Hero */}
         <div className="landing-hero">
           <div className="landing-badge">Mule Network Forensics v2.0</div>
-          <h1>Financial Forensics Engine</h1>
+          <h1>Argus Web</h1>
           <p>
             The industry's most advanced tool for identifying complex money laundering networks
             and uncovering fraud rings hidden within massive datasets.
@@ -300,7 +300,7 @@ function App() {
   return (
     <div className="app">
       <header>
-        <h1>Financial Forensics Engine</h1>
+        <h1>Argus Web</h1>
         <p>Analysis Results</p>
       </header>
 

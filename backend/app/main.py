@@ -8,7 +8,7 @@ from .output import build_output
 from .narrative import generate_all_narratives
 from .casefile import build_casefiles
 
-app = FastAPI(title="Financial Forensics Engine")
+app = FastAPI(title="Argus Web")
 
 app.add_middleware(
     CORSMiddleware,
